@@ -107,6 +107,8 @@ private fun RecordingsScreen(onBack: () -> Unit) {
     var page by remember { mutableIntStateOf(0) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var playbackError by remember { mutableStateOf<String?>(null) }
+    var isPlaybackPaused by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<RecordingEntry?>(null) }
     var playingUri by remember { mutableStateOf<Uri?>(null) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
@@ -117,6 +119,7 @@ private fun RecordingsScreen(onBack: () -> Unit) {
         runCatching { player?.release() }
         player = null
         playingUri = null
+        isPlaybackPaused = false
     }
 
     fun loadRecordings() {
@@ -204,6 +207,14 @@ private fun RecordingsScreen(onBack: () -> Unit) {
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            playbackError?.let { message ->
+                Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(message, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodyMedium)
+                        TextButton(onClick = { playbackError = null }) { Text("Dismiss") }
+                    }
+                }
+            }
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it; page = 0 },
@@ -237,22 +248,35 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                         items(visible, key = { it.uri.toString() }) { item ->
                             RecordingCard(
                                 item = item,
-                                isPlaying = playingUri == item.uri,
+                                isPlaying = playingUri == item.uri && !isPlaybackPaused,
                                 onPlay = {
                                     if (playingUri == item.uri) {
-                                        stopPlayer()
+                                        val activePlayer = player
+                                        if (activePlayer != null) {
+                                            runCatching {
+                                                if (isPlaybackPaused) activePlayer.start() else activePlayer.pause()
+                                                isPlaybackPaused = !isPlaybackPaused
+                                            }.onFailure {
+                                                playbackError = "Playback could not be resumed. Try opening the recording again."
+                                                stopPlayer()
+                                            }
+                                        }
                                     } else {
                                         stopPlayer()
+                                        playbackError = null
                                         runCatching {
                                             MediaPlayer().also { nextPlayer ->
                                                 player = nextPlayer
                                                 playingUri = item.uri
-                                                nextPlayer.setOnPreparedListener { prepared -> prepared.start() }
+                                                nextPlayer.setOnPreparedListener { prepared ->
+                                                    if (!isPlaybackPaused) prepared.start()
+                                                }
                                                 nextPlayer.setOnCompletionListener { completed ->
                                                     runCatching { completed.release() }
                                                     if (playingUri == item.uri) {
                                                         player = null
                                                         playingUri = null
+                                                        isPlaybackPaused = false
                                                     }
                                                 }
                                                 nextPlayer.setOnErrorListener { failedPlayer, _, _ ->
@@ -261,7 +285,7 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                                                         player = null
                                                         playingUri = null
                                                     }
-                                                    error = "Unable to play this recording. The file may be unavailable or use an unsupported format."
+                                                    playbackError = "Unable to play this recording. The file may be unavailable or use an unsupported format."
                                                     true
                                                 }
                                                 nextPlayer.setDataSource(context, item.uri)
@@ -269,7 +293,7 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                                             }
                                         }.onFailure {
                                             stopPlayer()
-                                            error = "Unable to play this recording. The file may be unavailable or use an unsupported format."
+                                            playbackError = "Unable to play this recording. The file may be unavailable or use an unsupported format."
                                         }
                                     }
                                 },

@@ -28,13 +28,14 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-provider: basic
+      - name: Install Gradle
+        run: |
+          curl --fail --silent --show-error --location https://services.gradle.org/distributions/gradle-9.4.1-bin.zip --output "$RUNNER_TEMP/gradle.zip"
+          unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-9.4.1/bin" >> "$GITHUB_PATH"
 
       - name: Build APK
-        run: ./gradlew --no-daemon --stacktrace assembleDebug
+        run: gradle --no-daemon --stacktrace assembleDebug
 
       - name: Rename APK
         run: |

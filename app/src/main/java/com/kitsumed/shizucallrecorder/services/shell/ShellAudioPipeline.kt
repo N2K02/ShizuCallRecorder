@@ -151,6 +151,7 @@ class ShellAudioPipeline {
             return null
         }
 
+        var pendingReadEnd: ParcelFileDescriptor? = null
         try {
             AppLogger.i("Initialising the ShellService recording pipeline...")
 
@@ -169,6 +170,7 @@ class ShellAudioPipeline {
             val pipe = ParcelFileDescriptor.createPipe()
             val pipeReadEnd  = pipe[0] // --> returned to app process
             val pipeWriteEnd = pipe[1] // --> written by ShellService relay coroutine
+            pendingReadEnd = pipeReadEnd
             audioWriteEnd = pipeWriteEnd
 
             // 3. Create Local Unix-domain Socket Server for the Scrcpy-Server binary
@@ -209,9 +211,13 @@ class ShellAudioPipeline {
             spawnProcessMonitorCoroutine(scrcpyProcess!!)
 
             AppLogger.i("Recording pipeline established. Returning pipe read-end to app process.")
-            return pipeReadEnd // ← returned to RecordingForegroundService via Binder
+            val result = checkNotNull(pendingReadEnd)
+            pendingReadEnd = null // Ownership transfers to the caller; don't close it during cleanup.
+            return result // ← returned to RecordingForegroundService via Binder
         } catch (e: Exception) {
             AppLogger.e("Critical failure during pipeline startup: ${e.message}", e)
+            runCatching { pendingReadEnd?.close() }
+            pendingReadEnd = null
             stopCapture() // Best-effort cleanup of any partially-allocated resources.
             return null
         }

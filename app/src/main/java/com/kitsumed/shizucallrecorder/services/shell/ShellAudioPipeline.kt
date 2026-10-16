@@ -144,7 +144,9 @@ class ShellAudioPipeline {
         serverPath: String,
         isDebuggingModeEnabled: Boolean
     ): ParcelFileDescriptor?  {
-        if (isRecordingActive.get()) {
+        // Claim the session before allocating any descriptors, sockets, or coroutines.
+        // This prevents two concurrent starts and lets stopCapture() clean up partial startup.
+        if (!isRecordingActive.compareAndSet(false, true)) {
             AppLogger.w("startCapture() rejected: a session is already active")
             return null
         }
@@ -158,6 +160,7 @@ class ShellAudioPipeline {
             val serverJarFile = File(serverPath)
             if (!serverJarFile.exists() || !ServerExtractor.verifyServerHash(serverJarFile)) {
                 AppLogger.w("Server JAR absent or SHA-256 mismatch at $serverPath - aborting")
+                isRecordingActive.set(false)
                 return null
             }
 
@@ -199,7 +202,6 @@ class ShellAudioPipeline {
                 redirectErrorStream(true)
             }
             scrcpyProcess = scrcpyBuilder.start()
-            isRecordingActive.set(true)
             AppLogger.i("scrcpy-server launched successfully")
 
             // 5. Start Helper coroutines

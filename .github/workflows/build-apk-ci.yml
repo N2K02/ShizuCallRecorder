@@ -40,21 +40,29 @@ jobs:
           SKIP_SIGNING: "true"
         run: gradle wrapper --no-daemon
 
-      - name: Build APK
+      - name: Run unit tests and build APK
         env:
           SKIP_SIGNING: "true"
         run: |
           set -o pipefail
-          ./gradlew --no-daemon --stacktrace assembleDebug 2>&1 | tee build.log || {
+          ./gradlew --no-daemon --stacktrace testDebugUnitTest assembleDebug 2>&1 | tee build.log || {
             grep -E '^e: |error:|What went wrong|Dependency .* requires|compileSdk|Android Gradle plugin' -A3 build.log | head -80 || true
             exit 1
           }
 
-      - name: Rename APK
+      - name: Read app version
+        id: version
+        env:
+          SKIP_SIGNING: "true"
         run: |
-          VERSION=$(sed -n 's/^[[:space:]]*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n 1)
-          VERSION="${VERSION:-dev}"
-          cp app/build/outputs/apk/debug/app-debug.apk "ShizuCallRecorder-${VERSION}-debug.apk"
+          ./gradlew --no-daemon writeVersionForCi
+          VERSION=$(cat app/build/outputs/version.txt)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Rename APK
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: cp app/build/outputs/apk/debug/app-debug.apk "ShizuCallRecorder-${VERSION}-debug.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

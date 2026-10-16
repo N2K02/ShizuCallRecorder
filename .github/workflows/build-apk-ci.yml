@@ -28,16 +28,27 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install Gradle
-        run: |
-          curl --fail --silent --show-error --location https://services.gradle.org/distributions/gradle-9.4.1-bin.zip --output "$RUNNER_TEMP/gradle.zip"
-          unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/gradle-9.4.1/bin" >> "$GITHUB_PATH"
+      - name: Set up Gradle with caching
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "9.4.1"
+          cache-provider: basic
+          cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+
+      - name: Generate Gradle wrapper
+        env:
+          SKIP_SIGNING: "true"
+        run: gradle wrapper --no-daemon
 
       - name: Build APK
         env:
           SKIP_SIGNING: "true"
-        run: gradle --no-daemon --stacktrace assembleDebug
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --stacktrace assembleDebug 2>&1 | tee build.log || {
+            grep -E '^e: |error:|What went wrong|Dependency .* requires|compileSdk|Android Gradle plugin' -A3 build.log | head -80 || true
+            exit 1
+          }
 
       - name: Rename APK
         run: |

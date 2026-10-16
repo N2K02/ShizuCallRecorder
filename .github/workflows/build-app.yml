@@ -111,6 +111,7 @@ jobs:
       # Set up signing for release builds
       # Signing keystore is stored as a base64-encoded secret
       - name: Decode Keystore
+        if: ${{ inputs.release_type != 'Debug Asset' }}
         run: |
           # Decode the keystore from base64 secret
           echo "${{ secrets.SIGNING_KEYSTORE }}" | base64 -d > app/release-keystore.jks
@@ -119,10 +120,7 @@ jobs:
       - name: Build Debug APK
         if: ${{ steps.set-output.outputs.BUILD_TYPE == 'debug' }}
         env:
-          KEYSTORE_FILE: release-keystore.jks
-          KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SKIP_SIGNING: "true"
         run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       # Build Release APK (for Release/Pre-Release types)

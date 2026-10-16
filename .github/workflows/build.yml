@@ -1,0 +1,154 @@
+name: Build and Release APK
+
+on:
+  # A release is produced when the app version is deliberately changed.
+  push:
+    branches: [main]
+    paths:
+      - "app/build.gradle.kts"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Do not let two release builds race while creating the same version tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  APP: ShizuCallRecorder
+
+jobs:
+  build-release:
+    name: Build signed release APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "9.4.1"
+          cache-provider: basic
+
+      - name: Generate Gradle wrapper when missing
+        env:
+          SKIP_SIGNING: "true"
+        run: |
+          if [ ! -f ./gradlew ]; then
+            gradle wrapper --no-daemon
+          fi
+          chmod +x ./gradlew
+
+      - name: Read app version
+        id: version
+        env:
+          SKIP_SIGNING: "true"
+        run: |
+          ./gradlew --no-daemon writeVersionForCi
+          VERSION="$(cat app/build/outputs/version.txt)"
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$' || {
+            echo "::error::Invalid app version: $VERSION"
+            exit 1
+          }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Release version: $VERSION"
+
+      - name: Ensure this version has not already been released
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git fetch --tags --force
+          if git tag --list "v$VERSION" | grep -Fxq "v$VERSION"; then
+            echo "::error::Release v$VERSION already exists. Update versionName and versionCode in app/build.gradle.kts before creating another release."
+            exit 1
+          fi
+
+      - name: Prepare release signing key
+        env:
+          SIGNING_KEYSTORE: ${{ secrets.SIGNING_KEYSTORE }}
+        run: |
+          if [ -z "$SIGNING_KEYSTORE" ]; then
+            echo "::error::Missing SIGNING_KEYSTORE repository secret."
+            exit 1
+          fi
+          printf '%s' "$SIGNING_KEYSTORE" | base64 --decode > app/release-keystore.jks
+          test -s app/release-keystore.jks
+
+      - name: Build release APK
+        env:
+          KEYSTORE_FILE: app/release-keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --stacktrace assembleRelease 2>&1 | tee build.log || {
+            grep -E '^e: |error:|What went wrong|Dependency .* requires|compileSdk|Android Gradle plugin' -A3 build.log | head -80 || true
+            exit 1
+          }
+
+      - name: Verify release APK
+        run: |
+          APK="app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          BT="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$BT/apksigner" verify --verbose "$APK"
+
+      - name: Prepare release notes and APK
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk "$APP-$VERSION.apk"
+          previous="$(git tag --list 'v*' --sort=-version:refname | head -1)"
+          if [ -n "$previous" ]; then
+            changes="$(git log --no-merges --pretty='- %s' "$previous..HEAD" | head -40)"
+          else
+            changes="$(git log --no-merges --pretty='- %s' HEAD | head -40)"
+          fi
+          [ -n "$changes" ] || changes="- Maintenance release"
+          {
+            echo "## $APP $VERSION"
+            echo
+            echo "### What's new"
+            echo "$changes"
+            echo
+            echo "### Install"
+            echo "Download the APK asset below and install it on your Android device."
+            echo
+            echo "_Built from commit \`${GITHUB_SHA::7}\`._"
+          } > release-notes.md
+          cat release-notes.md
+
+      - name: Clean up signing key
+        if: ${{ always() }}
+        run: rm -f app/release-keystore.jks
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP }}-${{ steps.version.outputs.version }}
+          path: ShizuCallRecorder-*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ env.APP }} ${{ steps.version.outputs.version }}
+          body_path: release-notes.md
+          files: ShizuCallRecorder-*.apk
+          make_latest: true

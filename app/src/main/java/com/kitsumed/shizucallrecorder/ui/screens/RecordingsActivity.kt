@@ -72,6 +72,8 @@ import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 
+private val AUDIO_EXTENSIONS = setOf("aac", "amr", "3gp", "m4a", "mp3", "ogg", "opus", "wav", "flac", "webm")
+
 private data class RecordingEntry(
     val uri: Uri,
     val name: String,
@@ -144,7 +146,7 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                             val children = runCatching { dir.listFiles() }.getOrDefault(emptyArray())
                             for (child in children) {
                                 if (child.isDirectory) stack.add(child)
-                                else if (child.isFile && child.type?.startsWith("audio/") == true) {
+                                else if (child.isFile && (child.type?.startsWith("audio/") == true || child.name?.substringAfterLast('.', "")?.lowercase(Locale.ROOT) in AUDIO_EXTENSIONS)) {
                                     found.add(RecordingEntry(child.uri, child.name ?: "Audio recording", child.lastModified(), child.length()))
                                 }
                             }

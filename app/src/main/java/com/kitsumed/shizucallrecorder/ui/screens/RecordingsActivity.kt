@@ -111,6 +111,7 @@ private fun RecordingsScreen(onBack: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var playbackError by remember { mutableStateOf<String?>(null) }
     var isPlaybackPaused by remember { mutableStateOf(false) }
+    var isPlayerPrepared by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<RecordingEntry?>(null) }
     var playingUri by remember { mutableStateOf<Uri?>(null) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
@@ -122,16 +123,18 @@ private fun RecordingsScreen(onBack: () -> Unit) {
         player = null
         playingUri = null
         isPlaybackPaused = false
+        isPlayerPrepared = false
     }
 
     fun loadRecordings() {
         scope.launch {
             loading = true
             error = null
-            val folderUri = withContext(Dispatchers.IO) {
-                AppPreferences(context.applicationContext).getRecordingFolderUri()
-            }
-            val result = withContext(Dispatchers.IO) {
+            try {
+                val folderUri = withContext(Dispatchers.IO) {
+                    AppPreferences(context.applicationContext).getRecordingFolderUri()
+                }
+                val result = withContext(Dispatchers.IO) {
                 if (folderUri == null) {
                     emptyList()
                 } else {
@@ -161,9 +164,13 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                 val rootExists = runCatching { DocumentFile.fromTreeUri(context, folderUri)?.canRead() == true }.getOrDefault(false)
                 if (!rootExists) error = "The recording folder is unavailable. Re-select it in Settings."
             }
-            recordings = result
-            page = 0
-            loading = false
+                recordings = result
+                page = 0
+            } catch (exception: Exception) {
+                error = "Could not read the recording library. Check folder access and try again."
+            } finally {
+                loading = false
+            }
         }
     }
 
@@ -255,12 +262,17 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                                     if (playingUri == item.uri) {
                                         val activePlayer = player
                                         if (activePlayer != null) {
-                                            runCatching {
-                                                if (isPlaybackPaused) activePlayer.start() else activePlayer.pause()
+                                            if (!isPlayerPrepared) {
+                                                // Keep the user's intent while prepareAsync() is still running.
                                                 isPlaybackPaused = !isPlaybackPaused
-                                            }.onFailure {
-                                                playbackError = "Playback could not be resumed. Try opening the recording again."
-                                                stopPlayer()
+                                            } else {
+                                                runCatching {
+                                                    if (isPlaybackPaused) activePlayer.start() else activePlayer.pause()
+                                                    isPlaybackPaused = !isPlaybackPaused
+                                                }.onFailure {
+                                                    playbackError = "Playback could not be resumed. Try opening the recording again."
+                                                    stopPlayer()
+                                                }
                                             }
                                         }
                                     } else {
@@ -271,6 +283,7 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                                                 player = nextPlayer
                                                 playingUri = item.uri
                                                 nextPlayer.setOnPreparedListener { prepared ->
+                                                    isPlayerPrepared = true
                                                     if (!isPlaybackPaused) prepared.start()
                                                 }
                                                 nextPlayer.setOnCompletionListener { completed ->
@@ -279,6 +292,7 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                                                         player = null
                                                         playingUri = null
                                                         isPlaybackPaused = false
+                                                        isPlayerPrepared = false
                                                     }
                                                 }
                                                 nextPlayer.setOnErrorListener { failedPlayer, _, _ ->
@@ -286,6 +300,8 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                                                     if (playingUri == item.uri) {
                                                         player = null
                                                         playingUri = null
+                                                        isPlaybackPaused = false
+                                                        isPlayerPrepared = false
                                                     }
                                                     playbackError = "Unable to play this recording. The file may be unavailable or use an unsupported format."
                                                     true

@@ -135,35 +135,53 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                     AppPreferences(context.applicationContext).getRecordingFolderUri()
                 }
                 val result = withContext(Dispatchers.IO) {
-                if (folderUri == null) {
-                    emptyList()
-                } else {
-                    val root = runCatching { DocumentFile.fromTreeUri(context, folderUri) }.getOrNull()
-                    if (root == null || !root.canRead()) emptyList()
-                    else {
-                        val found = mutableListOf<RecordingEntry>()
-                        val stack = ArrayDeque<DocumentFile>()
-                        stack.add(root)
-                        while (stack.isNotEmpty()) {
-                            val dir = stack.removeLast()
-                            val children = runCatching { dir.listFiles() }.getOrDefault(emptyArray())
-                            for (child in children) {
-                                if (child.isDirectory) stack.add(child)
-                                else if (child.isFile && (child.type?.startsWith("audio/") == true || child.name?.substringAfterLast('.', "")?.lowercase(Locale.ROOT) in AUDIO_EXTENSIONS)) {
-                                    found.add(RecordingEntry(child.uri, child.name ?: "Audio recording", child.lastModified(), child.length()))
+                    if (folderUri == null) {
+                        emptyList()
+                    } else {
+                        val root = runCatching { DocumentFile.fromTreeUri(context, folderUri) }.getOrNull()
+                        if (root == null || !root.canRead()) {
+                            emptyList()
+                        } else {
+                            val found = mutableListOf<RecordingEntry>()
+                            val stack = ArrayDeque<DocumentFile>()
+                            stack.add(root)
+                            while (stack.isNotEmpty()) {
+                                val directory = stack.removeLast()
+                                val children = runCatching { directory.listFiles() }.getOrDefault(emptyArray())
+                                for (child in children) {
+                                    if (child.isDirectory) {
+                                        stack.add(child)
+                                    } else if (
+                                        child.isFile &&
+                                        (child.type?.startsWith("audio/") == true ||
+                                            child.name?.substringAfterLast('.', "")?.lowercase(Locale.ROOT) in AUDIO_EXTENSIONS)
+                                    ) {
+                                        found.add(
+                                            RecordingEntry(
+                                                uri = child.uri,
+                                                name = child.name ?: "Audio recording",
+                                                modified = child.lastModified(),
+                                                size = child.length()
+                                            )
+                                        )
+                                    }
                                 }
                             }
+                            found.sortedByDescending { it.modified }
                         }
-                        found.sortedByDescending { it.modified }
                     }
                 }
-            }
-            if (folderUri == null) {
-                error = "Choose a recording folder in Settings first."
-            } else if (result.isEmpty()) {
-                val rootExists = runCatching { DocumentFile.fromTreeUri(context, folderUri)?.canRead() == true }.getOrDefault(false)
-                if (!rootExists) error = "The recording folder is unavailable. Re-select it in Settings."
-            }
+
+                if (folderUri == null) {
+                    error = "Choose a recording folder in Settings first."
+                } else if (result.isEmpty()) {
+                    val rootExists = runCatching {
+                        DocumentFile.fromTreeUri(context, folderUri)?.canRead() == true
+                    }.getOrDefault(false)
+                    if (!rootExists) {
+                        error = "The recording folder is unavailable. Re-select it in Settings."
+                    }
+                }
                 recordings = result
                 page = 0
             } catch (exception: Exception) {
@@ -173,7 +191,6 @@ private fun RecordingsScreen(onBack: () -> Unit) {
             }
         }
     }
-
     LaunchedEffect(Unit) { loadRecordings() }
     DisposableEffect(Unit) {
         onDispose { runCatching { player?.release() }; player = null }

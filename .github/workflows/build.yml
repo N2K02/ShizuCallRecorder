@@ -87,6 +87,7 @@ jobs:
           SIGNING_PASSPHRASE: ${{ secrets.SIGNING_PASSPHRASE }}
           SKIP_SIGNING: "true"
         run: |
+          set -o pipefail
           echo "Android SDK: ${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
           yes | "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           if [ ! -f ./gradlew ]; then

@@ -109,7 +109,7 @@ private fun RecordingsScreen(onBack: () -> Unit) {
     var page by remember { mutableIntStateOf(0) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
-    var playbackError by remember { mutableStateOf<String?>(null) }
+    var actionError by remember { mutableStateOf<String?>(null) }
     var isPlaybackPaused by remember { mutableStateOf(false) }
     var isPlayerPrepared by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<RecordingEntry?>(null) }
@@ -233,11 +233,11 @@ private fun RecordingsScreen(onBack: () -> Unit) {
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            playbackError?.let { message ->
+            actionError?.let { message ->
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(message, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodyMedium)
-                        TextButton(onClick = { playbackError = null }) { Text("Dismiss") }
+                        TextButton(onClick = { actionError = null }) { Text("Dismiss") }
                     }
                 }
             }
@@ -287,14 +287,14 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                                                     if (isPlaybackPaused) activePlayer.start() else activePlayer.pause()
                                                     isPlaybackPaused = !isPlaybackPaused
                                                 }.onFailure {
-                                                    playbackError = "Playback could not be resumed. Try opening the recording again."
+                                                    actionError = "Playback could not be resumed. Try opening the recording again."
                                                     stopPlayer()
                                                 }
                                             }
                                         }
                                     } else {
                                         stopPlayer()
-                                        playbackError = null
+                                        actionError = null
                                         runCatching {
                                             MediaPlayer().also { nextPlayer ->
                                                 player = nextPlayer
@@ -320,7 +320,7 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                                                         isPlaybackPaused = false
                                                         isPlayerPrepared = false
                                                     }
-                                                    playbackError = "Unable to play this recording. The file may be unavailable or use an unsupported format."
+                                                    actionError = "Unable to play this recording. The file may be unavailable or use an unsupported format."
                                                     true
                                                 }
                                                 nextPlayer.setDataSource(context, item.uri)
@@ -328,7 +328,7 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                                             }
                                         }.onFailure {
                                             stopPlayer()
-                                            playbackError = "Unable to play this recording. The file may be unavailable or use an unsupported format."
+                                            actionError = "Unable to play this recording. The file may be unavailable or use an unsupported format."
                                         }
                                     }
                                 },
@@ -377,7 +377,7 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                             if (playingUri == item.uri) stopPlayer()
                             recordings = recordings.filterNot { it.uri == item.uri }
                         } else {
-                            error = "Could not delete this recording. Check folder permissions."
+                            actionError = "Could not delete this recording. Check folder permissions."
                         }
                     }
                 }) { Text("Delete") }

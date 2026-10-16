@@ -244,20 +244,28 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                                     } else {
                                         stopPlayer()
                                         runCatching {
-                                            MediaPlayer().apply {
-                                                setDataSource(context, item.uri)
-                                                setOnCompletionListener { completed ->
+                                            MediaPlayer().also { nextPlayer ->
+                                                player = nextPlayer
+                                                playingUri = item.uri
+                                                nextPlayer.setOnPreparedListener { prepared -> prepared.start() }
+                                                nextPlayer.setOnCompletionListener { completed ->
                                                     runCatching { completed.release() }
                                                     if (playingUri == item.uri) {
                                                         player = null
                                                         playingUri = null
                                                     }
                                                 }
-                                                prepare()
-                                                start()
-                                            }.also {
-                                                player = it
-                                                playingUri = item.uri
+                                                nextPlayer.setOnErrorListener { failedPlayer, _, _ ->
+                                                    runCatching { failedPlayer.release() }
+                                                    if (playingUri == item.uri) {
+                                                        player = null
+                                                        playingUri = null
+                                                    }
+                                                    error = "Unable to play this recording. The file may be unavailable or use an unsupported format."
+                                                    true
+                                                }
+                                                nextPlayer.setDataSource(context, item.uri)
+                                                nextPlayer.prepareAsync()
                                             }
                                         }.onFailure {
                                             stopPlayer()

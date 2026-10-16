@@ -244,14 +244,21 @@ class ShellAudioPipeline {
         }
 
         AppLogger.i("Stopping scrcpy-server process...")
-        runCatching { scrcpyProcess?.destroy() }
+        val process = scrcpyProcess
+        runCatching { process?.destroy() }
 
-        // Give the server up to PROCESS_STOP_GRACE_PERIOD_SEC to send its final audio bytes to the server socket.
-        // waitFor() blocks until the process exits or the timeout elapses.
+        // Give the server a grace period to flush its final audio bytes. If it ignores the
+        // graceful stop, forcibly terminate it so a stuck child cannot keep consuming battery.
         try {
-            scrcpyProcess?.waitFor(PROCESS_STOP_GRACE_PERIOD_SEC, TimeUnit.SECONDS)
+            if (process != null && !process.waitFor(PROCESS_STOP_GRACE_PERIOD_SEC, TimeUnit.SECONDS)) {
+                AppLogger.w("scrcpy-server did not stop gracefully; forcing process termination")
+                process.destroyForcibly()
+                process.waitFor(500, TimeUnit.MILLISECONDS)
+            }
         } catch (e: InterruptedException) {
-            AppLogger.w( "Interrupted while waiting for scrcpy-server exit: ${e.message}")
+            Thread.currentThread().interrupt()
+            AppLogger.w("Interrupted while waiting for scrcpy-server exit: ${e.message}")
+            runCatching { process?.destroyForcibly() }
         }
 
         // Wait for the relay job to copy remaining socket data to the pipe for downstream app (Time-bounded).

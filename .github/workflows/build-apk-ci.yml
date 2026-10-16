@@ -35,6 +35,8 @@ jobs:
           echo "$RUNNER_TEMP/gradle-9.4.1/bin" >> "$GITHUB_PATH"
 
       - name: Build APK
+        env:
+          SKIP_SIGNING: "true"
         run: gradle --no-daemon --stacktrace assembleDebug
 
       - name: Rename APK

@@ -6,7 +6,6 @@ on:
     branches: [main]
     paths:
       - "app/build.gradle.kts"
-      - ".github/workflows/build.yml"
   workflow_dispatch:
 
 permissions:

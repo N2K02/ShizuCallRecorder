@@ -126,7 +126,7 @@ tasks.register("writeVersionForCi") {
 
 android {
     namespace = "com.kitsumed.shizucallrecorder"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.kitsumed.shizucallrecorder"

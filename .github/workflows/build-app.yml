@@ -128,7 +128,7 @@ jobs:
       - name: Build Release APK
         if: ${{ steps.set-output.outputs.BUILD_TYPE == 'release' }}
         env:
-          KEYSTORE_FILE: release-keystore.jks
+          KEYSTORE_FILE: app/release-keystore.jks
           KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}

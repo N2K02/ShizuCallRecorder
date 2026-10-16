@@ -84,12 +84,12 @@ class RecordingsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val preferences = AppPreferences(applicationContext)
-        val darkTheme = when (preferences.getThemeMode()) {
-            AppPreferences.ThemeMode.LIGHT -> false
-            AppPreferences.ThemeMode.DARK -> true
-            AppPreferences.ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
-        }
         setContent {
+            val darkTheme = when (preferences.getThemeMode()) {
+                AppPreferences.ThemeMode.LIGHT -> false
+                AppPreferences.ThemeMode.DARK -> true
+                AppPreferences.ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
+            }
             ShizuCallRecorderTheme(darkTheme = darkTheme, dynamicColor = preferences.isDynamicColorEnabled()) {
                 RecordingsScreen(onBack = { finish() })
             }

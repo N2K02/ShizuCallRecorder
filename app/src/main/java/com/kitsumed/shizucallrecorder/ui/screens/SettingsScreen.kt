@@ -1282,7 +1282,8 @@ private fun SettingsScreenPreview() {
             onOpenContactsOutgoing = {},
             onConfirmContacts = {},
             onDismissContacts = {},
-            onExportLogs = {}
+            onExportLogs = {},
+            onOpenRecordings = {}
         )
     }
 }

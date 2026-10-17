@@ -62,6 +62,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsumed.shizucallrecorder.R
+import com.kitsumed.shizucallrecorder.FooterScroll
+import com.kitsumed.shizucallrecorder.UpdateCard
+import com.kitsumed.shizucallrecorder.UpdateFooterBar
 import com.kitsumed.shizucallrecorder.ui.screens.RecordingsActivity
 import com.kitsumed.shizucallrecorder.data.AppPreferences
 import com.kitsumed.shizucallrecorder.integrations.scrcpy.ScrcpyAudioCodec

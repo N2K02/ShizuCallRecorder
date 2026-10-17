@@ -133,8 +133,8 @@ android {
         minSdk = 30
         targetSdk = 36
         // Keep theses two values hard-coded here and update them per version. (To keep F-Droid compatibility since their parser is very basic)
-        versionCode = 23
-        versionName = "1.3.7" // release workflow retrigger after Gradle runner fix
+        versionCode = 24
+        versionName = "1.3.8" // footer version details popup
 
         buildConfigField("String", "SCRCPY_VERSION", "\"$scrcpyVersion\"")
         buildConfigField("String", "SCRCPY_SERVER_SHA256", "\"$scrcpyServerSha256\"")

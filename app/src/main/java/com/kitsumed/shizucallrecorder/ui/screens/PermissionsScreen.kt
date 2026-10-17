@@ -82,6 +82,7 @@ import kotlin.system.exitProcess
 fun PermissionsScreen(
     status: OnboardingStatus.Status,
     onPermissionGranted: () -> Unit,
+    onContinue: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PermissionsViewModel = viewModel()
 ) {
@@ -259,6 +260,7 @@ fun PermissionsScreen(
 
     PermissionsContent(
         status = status,
+        onContinue = onContinue,
         onGrantAccessButtonClick = {
             viewModel.onGrantAccess(
                 status = status,
@@ -295,6 +297,7 @@ fun PermissionsScreen(
 @Composable
 fun PermissionsContent(
     status: OnboardingStatus.Status,
+    onContinue: () -> Unit,
     onGrantAccessButtonClick: () -> Unit,
     onCallDetectionModeChanged: (CallDetectionMode) -> Unit,
     isProcessingGrantingRequest: Boolean,

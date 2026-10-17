@@ -109,7 +109,6 @@ fun UpdateCard(modifier: Modifier = Modifier) {
                     }
                     is AppUpdater.State.Available -> {
                         Title("Update available: ${s.release.versionName}")
-                        Notes(s.release)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = { diagnosticsVisible = false; AppUpdater.update(s.release) }) { Text("Update now") }
                             TextButton(onClick = { AppUpdater.dismiss() }) { Text("Later") }
@@ -184,15 +183,6 @@ fun UpdateCard(modifier: Modifier = Modifier) {
 @Composable
 private fun Title(text: String) {
     Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-}
-
-@Composable
-private fun Notes(release: AppUpdater.Release) {
-    if (release.notes.isEmpty()) return
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("What's new", style = MaterialTheme.typography.labelLarge)
-        release.notes.forEach { Text("•  $it", style = MaterialTheme.typography.bodyMedium) }
-    }
 }
 
 /**

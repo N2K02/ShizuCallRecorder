@@ -978,6 +978,9 @@ private fun SettingsScreenPreview() {
             override fun setAutoRecordOutgoing(enabled: Boolean) {}
             override fun setVibrationEnabled(enabled: Boolean) {}
             override fun setAudioSource(source: String) {}
+            override fun confirmAudioSource(isThirdParty: Boolean) {}
+            override fun tryNextAudioSource(isThirdParty: Boolean): Boolean = true
+            override fun resetAudioSourceProfile(isThirdParty: Boolean) {}
             override fun setAudioCodec(codec: String) {}
             override fun setAudioBitRate(bitRate: Int) {}
             override fun setThemeMode(mode: AppPreferences.ThemeMode) {}

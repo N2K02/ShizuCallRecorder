@@ -7,6 +7,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -46,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.kitsumed.shizucallrecorder.integrations.scrcpy.ScrcpyConfig
 
 private tailrec fun Context.activity(): Activity? = when (this) {
     is Activity -> this
@@ -176,6 +179,7 @@ private fun Notes(release: AppUpdater.Release) {
 @Composable
 fun UpdateFooterBar(appName: String, modifier: Modifier = Modifier) {
     val state by AppUpdater.state.collectAsState()
+    var showVersionDetails by androidx.compose.runtime.remember { mutableStateOf(false) }
     val activity = LocalContext.current.activity()
     val busy = state is AppUpdater.State.Downloading || state is AppUpdater.State.Ready ||
         state is AppUpdater.State.NeedsPermission
@@ -221,7 +225,8 @@ fun UpdateFooterBar(appName: String, modifier: Modifier = Modifier) {
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(start = 10.dp),
+                        .padding(start = 10.dp)
+                        .clickable { showVersionDetails = true },
                 )
                 val small = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
                 val buttonModifier = Modifier.heightIn(min = 32.dp)
@@ -258,5 +263,23 @@ fun UpdateFooterBar(appName: String, modifier: Modifier = Modifier) {
                 }
             }
         }
+    }
+
+    if (showVersionDetails) {
+        AlertDialog(
+            onDismissRequest = { showVersionDetails = false },
+            title = { Text("App details") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Application: $appName")
+                    Text("App version: ${AppUpdater.installedVersionName}")
+                    Text("Build number: ${BuildConfig.VERSION_CODE}")
+                    Text("scrcpy server: ${ScrcpyConfig.SCRCPY_VERSION}")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showVersionDetails = false }) { Text("Close") }
+            }
+        )
     }
 }

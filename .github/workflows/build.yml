@@ -33,12 +33,6 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: "9.4.1"
-          cache-provider: basic
-
       - name: Work out version and release notes
         id: release
         run: |
@@ -51,7 +45,6 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "Release version: $VERSION"
 
-          git fetch --tags --force
           if git tag --list "v$VERSION" | grep -Fxq "v$VERSION"; then
             echo "::error::Release v$VERSION already exists. Update versionName and versionCode in app/build.gradle.kts before creating another release."
             exit 1
@@ -90,11 +83,7 @@ jobs:
           set -o pipefail
           echo "Android SDK: ${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
           yes | "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
-          if [ ! -f ./gradlew ]; then
-            gradle wrapper --no-daemon
-          fi
           chmod +x gradlew
-          set -o pipefail
           ./gradlew --no-daemon --stacktrace assembleRelease 2>&1 | tee build.log || {
             msg=$(grep -E '^e: |error:|What went wrong|Dependency .* requires|compileSdk|Android Gradle plugin' -A3 build.log | head -80 | sed -e 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')
             echo "::error title=Build failed::$msg"
@@ -129,14 +118,6 @@ jobs:
             --out "$APP-$VERSION.apk" app/build/outputs/apk/release/app-release-unsigned.apk
 
           "$BT/apksigner" verify --verbose --print-certs "$APP-$VERSION.apk" | grep -E "Signer.*(DN|SHA-256 digest)"
-
-      - name: Upload APK (workflow artifact)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.APP }}-${{ steps.release.outputs.version }}
-          path: ShizuCallRecorder-${{ steps.release.outputs.version }}.apk
-          if-no-files-found: error
-          retention-days: 30
 
       - name: Publish APK as a release
         uses: softprops/action-gh-release@v2

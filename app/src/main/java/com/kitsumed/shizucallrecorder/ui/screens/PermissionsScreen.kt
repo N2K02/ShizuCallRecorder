@@ -345,7 +345,9 @@ fun PermissionsContent(
                         !status.shizukuRunning -> stringResource(R.string.permission_shizuku_not_running)
                         !status.shizukuPermissionGranted -> stringResource(R.string.permissions_status_required)
                         else -> null
-                    }
+                    },
+                    onAllowClick = onGrantAccessButtonClick,
+                    allowEnabled = !status.shizukuRunning || !status.shizukuPermissionGranted
                 )
 
                 val globalPermissions = listOf(
@@ -355,13 +357,24 @@ fun PermissionsContent(
                     Triple(stringResource(R.string.settings_recording_folder_label), stringResource(R.string.permission_storage_description), status.storageSelected to Icons.Default.Folder)
                 )
 
-                // How global permissions
-                globalPermissions.forEach { (label, desc, grantInfo) ->
+                val shizukuReady = status.shizukuRunning && status.shizukuPermissionGranted
+                val globalReady = shizukuReady && status.notificationsGranted && status.contactsGranted &&
+                    status.batteryExempted && status.storageSelected
+                globalPermissions.forEachIndexed { index, (label, desc, grantInfo) ->
+                    val actionEnabled = when (index) {
+                        0 -> shizukuReady && !status.notificationsGranted
+                        1 -> shizukuReady && status.notificationsGranted && !status.contactsGranted
+                        2 -> shizukuReady && status.notificationsGranted && status.contactsGranted && !status.batteryExempted
+                        else -> shizukuReady && status.notificationsGranted && status.contactsGranted &&
+                            status.batteryExempted && !status.storageSelected
+                    }
                     PermissionCard(
                         label = label,
                         description = desc,
                         granted = grantInfo.first,
-                        iconOverride = grantInfo.second
+                        iconOverride = grantInfo.second,
+                        onAllowClick = onGrantAccessButtonClick,
+                        allowEnabled = actionEnabled
                     )
                 }
 
@@ -402,11 +415,16 @@ fun PermissionsContent(
                         // Show the required permissions for the selected call detection mode
                         selectedCallDetectionMode.requiredPermissions.forEach { currentPermission ->
                             val isGranted = status.callDetectionModeGrantedPermissions.contains(currentPermission)
+                            val firstMissingPermission = selectedCallDetectionMode.requiredPermissions.firstOrNull { missing ->
+                                !status.callDetectionModeGrantedPermissions.contains(missing)
+                            }
                             PermissionCard(
                                 label = stringResource(currentPermission.titleResId),
                                 description = stringResource(currentPermission.descriptionResId),
                                 granted = isGranted,
-                                iconOverride = currentPermission.icon
+                                iconOverride = currentPermission.icon,
+                                onAllowClick = onGrantAccessButtonClick,
+                                allowEnabled = globalReady && !isGranted && currentPermission == firstMissingPermission
                             )
                         }
                     }

@@ -101,7 +101,6 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var showUpdatesPage by rememberSaveable { mutableStateOf(false) }
     
     // Trigger recomposition when settings change by viewmodel.refresh()
     val updateTrigger by viewModel.updateTrigger.collectAsState()
@@ -123,28 +122,20 @@ fun SettingsScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (showUpdatesPage) {
-            UpdatesScreen(
-                onBack = { showUpdatesPage = false },
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-            )
-        } else {
-            SettingsContent(
-                preferences = viewModel.preferences,
-                updateTrigger = updateTrigger,
-                actions = viewModel,
-                onSelectFolder = { folderPickerLauncher.launch(null) },
-                onExportLogs = { exportLogLauncher.launch("shizucallrecorder_bug_report.log") },
-                onOpenRecordings = { context.startActivity(Intent(context, RecordingsActivity::class.java)) },
-                modifier = modifier.fillMaxSize()
-            )
-            UpdateFooterBar(
-                appName = "ShizuCallRecorder",
-                modifier = Modifier.align(Alignment.BottomCenter),
-                onOpenUpdates = { showUpdatesPage = true },
-                aboutAction = { AboutSection() }
-            )
-        }
+        SettingsContent(
+            preferences = viewModel.preferences,
+            updateTrigger = updateTrigger,
+            actions = viewModel,
+            onSelectFolder = { folderPickerLauncher.launch(null) },
+            onExportLogs = { exportLogLauncher.launch("shizucallrecorder_bug_report.log") },
+            onOpenRecordings = { context.startActivity(Intent(context, RecordingsActivity::class.java)) },
+            modifier = modifier.fillMaxSize()
+        )
+        UpdateFooterBar(
+            appName = "ShizuCallRecorder",
+            modifier = Modifier.align(Alignment.BottomCenter),
+            aboutAction = { AboutSection() }
+        )
     }
 }
 
@@ -184,14 +175,14 @@ fun SettingsContent(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             item {
-                UpdateCard(modifier = Modifier.fillMaxWidth())
-            }
-            item {
                 Text(
                     text = stringResource(R.string.general_settings),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
+            }
+            item {
+                UpdateCard(modifier = Modifier.fillMaxWidth())
             }
             item {
                 Card(

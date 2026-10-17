@@ -73,7 +73,6 @@ interface SettingsActions {
     fun setShizukuStartOnRecordEnabled(enabled: Boolean)
     fun setShizukuKeepAliveEnabled(enabled: Boolean)
     fun setShizukuAuthKey(key: String)
-    fun setFileNameTemplate(template: String)
     fun setCallDetectionMode(mode: CallDetectionMode)
     fun setRecordThirdPartyCalls(enabled: Boolean)
     fun setPostRecordingFileNotification(enabled: Boolean)

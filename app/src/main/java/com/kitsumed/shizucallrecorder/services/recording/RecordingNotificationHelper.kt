@@ -47,6 +47,11 @@ class RecordingNotificationHelper(private val context: Context) {
         private const val REQUEST_CODE_DELETE_RECORDING = 1003
     }
 
+    // Decode the launcher icon only once per helper instead of on every foreground notification update.
+    private val appIcon by lazy(LazyThreadSafetyMode.NONE) {
+        BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
+    }
+
     /**
      * Creates the Android notification channel for recording notifications.
      */
@@ -156,13 +161,21 @@ class RecordingNotificationHelper(private val context: Context) {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID_SERVICE)
             .setSmallIcon(R.drawable.ic_mic)
-            .setLargeIcon(BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher))
+            .setLargeIcon(appIcon)
             .setContentTitle(context.getString(titleRes))
             .setContentText(context.getString(contentRes))
             .setSubText(context.getString(subRes))
             .setOngoing(true) // Almost useless starting Android 14+ :)
             .setDeleteIntent(deletePendingIntent) // Android 14+ workaround :)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC) // Nothing sensible here, and we want to show it on lockscreen.
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(
+                NotificationCompat.Builder(context, CHANNEL_ID_SERVICE)
+                    .setSmallIcon(R.drawable.ic_mic)
+                    .setContentTitle(context.getString(R.string.app_name))
+                    .setContentText("Recording status hidden")
+                    .setCategory(NotificationCompat.CATEGORY_SERVICE)
+                    .build()
+            )
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setAutoCancel(false)
             .setOnlyAlertOnce(true)
@@ -270,7 +283,7 @@ class RecordingNotificationHelper(private val context: Context) {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_POST_RECORDING_FILE_ACTIONS)
             .setSmallIcon(R.drawable.ic_audio_file)
-            .setLargeIcon(BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher))
+            .setLargeIcon(appIcon)
             .setContentTitle(context.getString(R.string.post_recording_notification_title))
             .setContentText(callerText)
             .setAutoCancel(true)

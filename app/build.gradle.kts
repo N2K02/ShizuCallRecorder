@@ -133,8 +133,8 @@ android {
         minSdk = 30
         targetSdk = 36
         // Keep theses two values hard-coded here and update them per version. (To keep F-Droid compatibility since their parser is very basic)
-        versionCode = 30
-        versionName = "1.4.4" // Fixed date, caller, direction, number filenames; template removed
+        versionCode = 31
+        versionName = "1.4.5" // Realme call-detection resilience and caller-name fallback
 
         buildConfigField("String", "SCRCPY_VERSION", "\"$scrcpyVersion\"")
         buildConfigField("String", "SCRCPY_SERVER_SHA256", "\"$scrcpyServerSha256\"")

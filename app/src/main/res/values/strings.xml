@@ -13,6 +13,8 @@
     <string name="app_name" translatable="false">ShizuCallRecorder</string>
     <string name="general_close">Close</string>
     <string name="general_continue">Continue</string>
+    <string name="permission_allow_action">Allow</string>
+    <string name="permission_next_action">Next</string>
     <string name="general_ok">OK</string>
     <string name="general_cancel">Cancel</string>
     <string name="general_settings">Settings</string>

@@ -113,6 +113,8 @@ jobs:
           K="$RUNNER_TEMP/keys"
           mkdir -p "$K"
           chmod 700 "$K"
+          # Remove extracted private key material even if any later signing command fails.
+          trap 'rm -rf "$K"' EXIT
           openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in signing/keys.tar.enc -pass env:SIGNING_PASSPHRASE | tar -xf - -C "$K"
           BT="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           export RP="$(cat "$K/release.pass")" OP=android
@@ -126,8 +128,7 @@ jobs:
             --lineage "$K/lineage" --rotation-min-sdk-version 28 \
             --out "$APP-$VERSION.apk" app/build/outputs/apk/release/app-release-unsigned.apk
 
-          rm -rf "$K"
-          "$BT/apksigner" verify --print-certs "$APP-$VERSION.apk" | grep -E "Signer.*(DN|SHA-256 digest)"
+          "$BT/apksigner" verify --verbose --print-certs "$APP-$VERSION.apk" | grep -E "Signer.*(DN|SHA-256 digest)"
 
       - name: Upload APK (workflow artifact)
         uses: actions/upload-artifact@v4

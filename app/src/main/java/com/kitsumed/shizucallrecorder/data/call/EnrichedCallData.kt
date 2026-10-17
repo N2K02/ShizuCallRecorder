@@ -119,13 +119,22 @@ data class EnrichedCallData(
             val lookupUri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(phoneNumber))
             val projection = arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME)
 
-            return context.contentResolver.query(lookupUri, projection, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val nameIndex = cursor.getColumnIndex(ContactsContract.PhoneLookup.DISPLAY_NAME)
-                    if (nameIndex != -1) {
-                        cursor.getString(nameIndex)
+            return try {
+                context.contentResolver.query(lookupUri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIndex = cursor.getColumnIndex(ContactsContract.PhoneLookup.DISPLAY_NAME)
+                        if (nameIndex != -1) {
+                            cursor.getString(nameIndex)?.takeIf { name ->
+                                name.isNotBlank() && name.trim().lowercase() !in setOf(
+                                    "unknown", "unknown caller", "no name", "private number", "unknown number"
+                                )
+                            }
+                        } else null
                     } else null
-                } else null
+                }
+            } catch (e: Exception) {
+                AppLogger.w("Contact name lookup failed; retaining the caller-name fallback", e)
+                null
             }
         }
 

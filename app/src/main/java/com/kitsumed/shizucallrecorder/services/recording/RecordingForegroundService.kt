@@ -177,13 +177,6 @@ class RecordingForegroundService : Service() {
 
                 _serviceState.update { RecordingServiceState.Starting(currentMeta) }
 
-                // Validate Shizuku auto-management configuration before launching a session.
-                // A missing auth key must not leave a startup coroutine waiting for a server that cannot start.
-                if (!tryStartShizukuServer()) {
-                    _serviceState.update { RecordingServiceState.Standby(currentMeta) }
-                    return START_NOT_STICKY
-                }
-
                 serviceScope.launch {
                     try {
                         // Wait for Shizuku server to be available
@@ -217,14 +210,7 @@ class RecordingForegroundService : Service() {
 
             ACTION_STANDBY -> {
                 _serviceState.update { RecordingServiceState.Standby(currentMeta) }
-                serviceScope.launch {
-                    // If enabled in the user preferences, we try to start the Shizuku server as early as possible (in the standby state, RINGING/OUTGOING),
-                    // increasing the chance it's ready by the time we need it. But this means Shizuku will be running without the user starting the recording yet.
-                    if (!appPreferences.isShizukuStartOnRecordEnabled()) {
-                        tryStartShizukuServer()
-                    }
-                    AppLogger.i( "Entered standby for ${currentMeta?.direction} call")
-                }
+                AppLogger.i("Entered standby for ${currentMeta?.direction} call")
             }
 
             ACTION_PAUSE_RECORDING -> {
@@ -254,26 +240,6 @@ class RecordingForegroundService : Service() {
         return START_NOT_STICKY
     }
 
-    /**
-     * Tries to start the Shizuku server if "Auto-manage Shizuku" is enabled in the user preferences.
-     * If the auth key is missing, shows an error notification and stops the service since we won't be able to record without Shizuku.
-     * **This does not check the user preference for if shizuku should only start when recording or directly at standby**.
-     */
-    private fun tryStartShizukuServer(): Boolean {
-        if (!appPreferences.isShizukuAutoManageEnabled()) return true
-
-        val authKey = appPreferences.getShizukuAuthKey()
-        if (authKey.isBlank()) {
-            notificationHelper.showErrorNotification(getString(R.string.recording_shizuku_auth_key_missing))
-            notificationHelper.showToast(getString(R.string.recording_shizuku_auth_key_missing))
-            stopRecordingSessionAndService()
-            return false
-        }
-
-        ShizukuConnectionManager.startServer(this, authKey)
-        return true
-    }
-
     override fun onDestroy() {
         // Always clean up, even if the OS kills the service mid-recording.
         // This is the guaranteed last callback before the service process is cleaned up.
@@ -282,9 +248,6 @@ class RecordingForegroundService : Service() {
         overlayController.hideOverlay()
         stopRecordingSessionAndService()
         shizukuManager.unbind()
-        if (appPreferences.isShizukuAutoManageEnabled() && !appPreferences.isShizukuKeepAliveEnabled()) {
-            ShizukuConnectionManager.stopServer(this, appPreferences.getShizukuAuthKey())
-        }
         super.onDestroy()
     }
 

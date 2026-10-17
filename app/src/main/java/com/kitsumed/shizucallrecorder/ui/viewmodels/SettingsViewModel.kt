@@ -253,17 +253,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         refresh()
     }
 
-    // -------- File Naming --------
-
-    /** Saves the file name template.
-     *
-     * @param template The template string.
-     */
-    override fun setFileNameTemplate(template: String) {
-        preferences.setFileNameTemplate(template)
-        refresh()
-    }
-
     // -------- Visual settings
 
     /** Saves the app theme.

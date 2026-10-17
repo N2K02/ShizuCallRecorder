@@ -162,8 +162,8 @@ class RecordingForegroundService : Service() {
 
         when (action) {
             ACTION_START_RECORDING, ACTION_MANUAL_START -> {
-                if (state.isRecordingActive) {
-                    AppLogger.w( "Start request ignored. A session is already on-going.")
+                if (state.isStarting || state.isRecordingActive) {
+                    AppLogger.w("Start request ignored. A recording session is already starting or active.")
                     return START_NOT_STICKY
                 }
 
@@ -177,8 +177,12 @@ class RecordingForegroundService : Service() {
 
                 _serviceState.update { RecordingServiceState.Starting(currentMeta) }
 
-                // If enabled in the user preferences, we try to start the Shizuku as we are now starting the recording.
-                tryStartShizukuServer()
+                // Validate Shizuku auto-management configuration before launching a session.
+                // A missing auth key must not leave a startup coroutine waiting for a server that cannot start.
+                if (!tryStartShizukuServer()) {
+                    _serviceState.update { RecordingServiceState.Standby(currentMeta) }
+                    return START_NOT_STICKY
+                }
 
                 serviceScope.launch {
                     try {
@@ -255,17 +259,19 @@ class RecordingForegroundService : Service() {
      * If the auth key is missing, shows an error notification and stops the service since we won't be able to record without Shizuku.
      * **This does not check the user preference for if shizuku should only start when recording or directly at standby**.
      */
-    private fun tryStartShizukuServer() {
-        if (appPreferences.isShizukuAutoManageEnabled()) {
-            val authKey = appPreferences.getShizukuAuthKey()
-            if (authKey.isNotBlank()) {
-                ShizukuConnectionManager.startServer(this, authKey)
-            } else {
-                notificationHelper.showErrorNotification(getString(R.string.recording_shizuku_auth_key_missing))
-                notificationHelper.showToast(getString(R.string.recording_shizuku_auth_key_missing))
-                stopRecordingSessionAndService()
-            }
+    private fun tryStartShizukuServer(): Boolean {
+        if (!appPreferences.isShizukuAutoManageEnabled()) return true
+
+        val authKey = appPreferences.getShizukuAuthKey()
+        if (authKey.isBlank()) {
+            notificationHelper.showErrorNotification(getString(R.string.recording_shizuku_auth_key_missing))
+            notificationHelper.showToast(getString(R.string.recording_shizuku_auth_key_missing))
+            stopRecordingSessionAndService()
+            return false
         }
+
+        ShizukuConnectionManager.startServer(this, authKey)
+        return true
     }
 
     override fun onDestroy() {

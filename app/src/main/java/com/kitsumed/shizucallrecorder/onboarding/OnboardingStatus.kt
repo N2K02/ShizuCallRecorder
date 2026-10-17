@@ -32,7 +32,7 @@ object OnboardingStatus {
      * @param contactsGranted           True if READ_CONTACTS is granted.
      * @param batteryExempted           True if the app is on the battery-optimisation whitelist.
      * @param storageSelected           True if a valid SAF recording folder has been chosen.
-     * @param shizukuRunning            True if the Shizuku service is currently active or ShizukuAutoManage was enabled in the app settings.
+     * @param shizukuRunning            True if the Shizuku service is currently available.
      * @param shizukuPermissionGranted  True if the user has granted Shizuku permission to this app.
      * @param callDetectionMode         The currently selected call detection mode.
      * @param callDetectionModeGrantedPermissions True if the app has all permissions required for the current call detection mode.
@@ -86,10 +86,8 @@ object OnboardingStatus {
             contactsGranted          = PermissionChecks.hasContactsPermission(context),
             batteryExempted          = PermissionChecks.hasBatteryExemption(context),
             storageSelected          = SafHelper.isFolderValid(context, storageUri),
-            // Special check here, if the auto-manage option was enabled, users already passed this check, and we can assume app will be able to start/stop Shizuku as needed.
-            shizukuRunning           = ShizukuConnectionManager.isAvailable() || preferences.isShizukuAutoManageEnabled(),
-            // We provide the context to use the Android Permission system as a fallback. Since if isShizukuAutoManageEnabled is enabled, we can assume the
-            // shizuku server may not be running at the moment.
+            // Shizuku must currently be available; the removed auto-management setting is no longer part of onboarding state.
+            shizukuRunning           = ShizukuConnectionManager.isAvailable(),
             shizukuPermissionGranted = ShizukuConnectionManager.hasPermission(context),
             callDetectionMode = currentCallDetectionMode,
             callDetectionModeGrantedPermissions = currentModeDynamicallyGrantedList

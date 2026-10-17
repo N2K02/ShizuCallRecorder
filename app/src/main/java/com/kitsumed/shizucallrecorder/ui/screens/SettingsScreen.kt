@@ -1253,15 +1253,12 @@ private fun SettingsScreenPreview() {
             override fun setShizukuStartOnRecordEnabled(enabled: Boolean) {}
             override fun setShizukuKeepAliveEnabled(enabled: Boolean) {}
             override fun setShizukuAuthKey(key: String) {}
-            override fun setFileNameTemplate(template: String) {}
             override fun setCallDetectionMode(mode: CallDetectionMode) {}
             override fun setRecordThirdPartyCalls(enabled: Boolean) {}
             override fun setPostRecordingFileNotification(enabled: Boolean) {}
             override fun setOverlayEnabled(enabled: Boolean) {}
         }
 
-        // File name template selection dialog
-        //FileNameFormatDialog(AppPreferences.DefaultsValue.FILE_NAME_TEMPLATE, {},{})
 
         SettingsContent(
             preferences = dummyPreferences,

@@ -65,9 +65,11 @@ class InCallService : InCallService() {
     override fun onCreate() {
         super.onCreate()
         appPreferences = AppPreferences(this)
+        AppLogger.i("InCallService connected; OEM=${Build.MANUFACTURER}, device=${Build.DEVICE}, Android=${Build.VERSION.SDK_INT}")
     }
 
     override fun onDestroy() {
+        AppLogger.w("InCallService disconnected by the system")
         super.onDestroy()
         runCatching { serviceScope.cancel() } // Prevent garbage collection issue, close and free the task if any
     }
@@ -129,9 +131,13 @@ class InCallService : InCallService() {
             return
         }
         val telecomManager = this.getSystemService(TELECOM_SERVICE) as? TelecomManager
-        // Name of the app package responsible for this call (e.g. system dialer, default dialer, or a third-party app)
-        val packageName = call.details.accountHandle.componentName.packageName
-        val isCallFromSystemDialer = packageName == telecomManager?.systemDialerPackage ||
+        // Some OEMs may expose a call before its PhoneAccountHandle is fully populated.
+        // Treat a missing handle as unknown rather than crashing the callback; unknown calls
+        // should not be mistaken for third-party calls and silently skipped.
+        val accountHandle = call.details.accountHandle
+        val packageName = accountHandle?.componentName?.packageName
+        val isCallFromSystemDialer = packageName == null ||
+                packageName == telecomManager?.systemDialerPackage ||
                 packageName == telecomManager?.defaultDialerPackage || // Could be a third-party dialer, but it also means it handle carriers calls.
                 packageName == "com.android.phone"
 
@@ -159,7 +165,13 @@ class InCallService : InCallService() {
 
             // First attempt to get the name from the user contacts list, then fallback to the telecom-provided caller name
             // (which may be defined by the caller or a third-party app)
-            val oscallerName = details.contactDisplayName ?: details.callerDisplayName
+            val oscallerName = sequenceOf(details.contactDisplayName, details.callerDisplayName)
+                .firstOrNull { candidate ->
+                    !candidate.isNullOrBlank() &&
+                            candidate.trim().lowercase() !in setOf(
+                                "unknown", "unknown caller", "no name", "private number", "unknown number"
+                            )
+                }
 
             val rawCallData = RawCallData(
                 rawPhoneNumber = PhoneNumberManager.normalisePhoneNumber(rawNumber),

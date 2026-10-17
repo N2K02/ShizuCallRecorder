@@ -117,7 +117,7 @@
 
     <!-- Permissions Screen -->
     <string name="permissions_title">Permissions Setup</string>
-    <string name="permissions_intro">We need a few permissions to start recoding. Tap "Grant Access" and approve each item.</string>
+    <string name="permissions_intro">We need a few permissions to start recording. Tap Allow beside each item as it becomes available. Next unlocks when all required permissions are granted.</string>
     <string name="permissions_grant_access">Grant Access</string>
     <string name="permissions_status_granted">Granted</string>
     <string name="permissions_status_required">Required</string>

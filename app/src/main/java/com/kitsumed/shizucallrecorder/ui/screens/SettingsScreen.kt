@@ -153,7 +153,8 @@ fun SettingsScreen(
     )
     UpdateFooterBar(
         appName = "ShizuCallRecorder",
-        modifier = Modifier.align(Alignment.BottomCenter)
+        modifier = Modifier.align(Alignment.BottomCenter),
+        aboutAction = { AboutSection() }
     )
     }
 }

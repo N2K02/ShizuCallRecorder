@@ -195,6 +195,23 @@ class RecordingNotificationHelper(private val context: Context) {
             builder.addAction(actionIcon, actionText, actionPendingIntent)
         }
 
+        // Always offer an explicit stop action while a recording session is active.
+        // Use a distinct request code so Android cannot reuse the pause/resume PendingIntent.
+        if (state.isRecordingActive) {
+            val stopPendingIntent = PendingIntent.getService(
+                context, 2,
+                Intent(context, RecordingForegroundService::class.java).apply {
+                    action = RecordingForegroundService.ACTION_STOP_RECORDING
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            builder.addAction(
+                R.drawable.ic_stop,
+                context.getString(R.string.general_stop),
+                stopPendingIntent
+            )
+        }
+
         return builder.build()
     }
 

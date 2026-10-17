@@ -76,7 +76,7 @@ fun AppNavigationScreen() {
      */
     val onboardingStatus by appNavViewModel.onboardingStatus.collectAsState()
     var permissionsNextConfirmed by rememberSaveable { mutableStateOf(false) }
-    var hasVisitedIncompletePermissions by remember { mutableStateOf(!onboardingStatus.isComplete()) }
+    var hasVisitedIncompletePermissions by rememberSaveable { mutableStateOf(!onboardingStatus.isComplete()) }
 
     LaunchedEffect(onboardingStatus) {
         if (!onboardingStatus.isComplete()) {

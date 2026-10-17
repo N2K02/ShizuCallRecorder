@@ -1,0 +1,149 @@
+name: Build APK
+
+on:
+  # Match MRadio: publish a release when the app version is updated on main.
+  push:
+    branches: [main]
+    paths:
+      - "app/build.gradle.kts"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Serialize releases so concurrent runs cannot race while creating tags.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  APP: ShizuCallRecorder
+
+jobs:
+  build:
+    name: Build and publish signed APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "9.4.1"
+          cache-provider: basic
+
+      - name: Work out version and release notes
+        id: release
+        run: |
+          VERSION="$(grep -E '^[[:space:]]*versionName[[:space:]]*=' app/build.gradle.kts | head -1 | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/')"
+          if [ -z "$VERSION" ] || [ "$VERSION" = "$(grep -E '^[[:space:]]*versionName[[:space:]]*=' app/build.gradle.kts | head -1)" ]; then
+            echo "::error::Could not read versionName from app/build.gradle.kts"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Release version: $VERSION"
+
+          git fetch --tags --force
+          if git tag --list "v$VERSION" | grep -Fxq "v$VERSION"; then
+            echo "::error::Release v$VERSION already exists. Update versionName and versionCode in app/build.gradle.kts before creating another release."
+            exit 1
+          fi
+
+          previous="$(git tag -l 'v*' | grep -E '^v[0-9]+\.[0-9]+(\.[0-9]+)?$' | sort -V | tail -1 || true)"
+          if [ -n "$previous" ]; then
+            changes="$(git log --no-merges --pretty='- %s' "$previous..HEAD" | head -40)"
+          else
+            previous="$(git tag -l 'build-*' | sort -V | tail -1 || true)"
+            if [ -n "$previous" ]; then
+              changes="$(git log --no-merges --pretty='- %s' "$previous..HEAD" | head -40)"
+            else
+              changes="$(git log --no-merges --pretty='- %s' HEAD | head -40)"
+            fi
+          fi
+          [ -n "$changes" ] || changes="- Rebuild, no code changes"
+          {
+            echo "## $APP $VERSION"
+            echo
+            echo "### What's new"
+            echo "$changes"
+            echo
+            echo "### Install"
+            echo "Download the APK below and install it on your Android device."
+            echo
+            echo "_Built from commit \`${GITHUB_SHA::7}\`._"
+          } > release-notes.md
+          cat release-notes.md
+
+      - name: Build and sign APK
+        env:
+          SIGNING_PASSPHRASE: ${{ secrets.SIGNING_PASSPHRASE }}
+          SKIP_SIGNING: "true"
+        run: |
+          set -o pipefail
+          echo "Android SDK: ${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          yes | "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          if [ ! -f ./gradlew ]; then
+            gradle wrapper --no-daemon
+          fi
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew --no-daemon --stacktrace assembleRelease 2>&1 | tee build.log || {
+            msg=$(grep -E '^e: |error:|What went wrong|Dependency .* requires|compileSdk|Android Gradle plugin' -A3 build.log | head -80 | sed -e 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')
+            echo "::error title=Build failed::$msg"
+            exit 1
+          }
+
+          # Use the same encrypted, passphrase-protected signing bundle as MRadio.
+          if [ -z "$SIGNING_PASSPHRASE" ]; then
+            echo "::error title=Missing signing secret::Add SIGNING_PASSPHRASE in Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          test -s signing/keys.tar.enc || {
+            echo "::error::Missing signing/keys.tar.enc in the repository."
+            exit 1
+          }
+          K="$RUNNER_TEMP/keys"
+          mkdir -p "$K"
+          chmod 700 "$K"
+          # Remove extracted private key material even if any later signing command fails.
+          trap 'rm -rf "$K"' EXIT
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in signing/keys.tar.enc -pass env:SIGNING_PASSPHRASE | tar -xf - -C "$K"
+          BT="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          export RP="$(cat "$K/release.pass")" OP=android
+          "$BT/apksigner" rotate --out "$K/lineage" \
+            --old-signer --ks "$K/old.keystore" --ks-pass env:OP --ks-key-alias androiddebugkey --key-pass env:OP \
+            --new-signer --ks "$K/release.p12" --ks-pass env:RP --ks-key-alias release --key-pass env:RP
+
+          "$BT/apksigner" sign \
+            --ks "$K/old.keystore" --ks-pass env:OP --ks-key-alias androiddebugkey --key-pass env:OP \
+            --next-signer --ks "$K/release.p12" --ks-pass env:RP --ks-key-alias release --key-pass env:RP \
+            --lineage "$K/lineage" --rotation-min-sdk-version 28 \
+            --out "$APP-$VERSION.apk" app/build/outputs/apk/release/app-release-unsigned.apk
+
+          "$BT/apksigner" verify --verbose --print-certs "$APP-$VERSION.apk" | grep -E "Signer.*(DN|SHA-256 digest)"
+
+      - name: Upload APK (workflow artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP }}-${{ steps.release.outputs.version }}
+          path: ShizuCallRecorder-${{ steps.release.outputs.version }}.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish APK as a release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.release.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ env.APP }} ${{ steps.release.outputs.version }}
+          body_path: release-notes.md
+          files: ShizuCallRecorder-${{ steps.release.outputs.version }}.apk
+          make_latest: true

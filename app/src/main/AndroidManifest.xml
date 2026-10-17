@@ -64,6 +64,11 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.screens.RecordingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Shizucallrecorder" />
+
         <!-- Activity to show the user a confirmation dialog before deleting a recording -->
         <activity
             android:name=".services.recording.DeleteDialogConfirmationActivity"

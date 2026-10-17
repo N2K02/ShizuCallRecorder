@@ -35,6 +35,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -60,6 +61,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsumed.shizucallrecorder.R
+import com.kitsumed.shizucallrecorder.ui.screens.RecordingsActivity
 import com.kitsumed.shizucallrecorder.data.AppPreferences
 import com.kitsumed.shizucallrecorder.integrations.scrcpy.ScrcpyAudioCodec
 import com.kitsumed.shizucallrecorder.integrations.scrcpy.ScrcpyAudioSource
@@ -141,6 +143,7 @@ fun SettingsScreen(
         },
         onDismissContacts = { contactPickerViewModel.dismissContactPicker() },
         onExportLogs = { exportLogLauncher.launch("shizucallrecorder_bug_report.log") },
+        onOpenRecordings = { context.startActivity(Intent(context, RecordingsActivity::class.java)) },
         modifier = modifier
     )
 }
@@ -172,6 +175,7 @@ fun SettingsContent(
     onConfirmContacts: (Set<String>) -> Unit,
     onDismissContacts: () -> Unit,
     onExportLogs: () -> Unit,
+    onOpenRecordings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -196,6 +200,26 @@ fun SettingsContent(
                 )
             }
             item { AboutSection(versionString = actions.getAppVersion()) }
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenRecordings),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(Icons.Default.FolderOpen, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Recordings", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                            Text("Play, share, or delete saved calls", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        }
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Open recordings", tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                    }
+                }
+            }
             item {
                 RecordingSection(
                     preferences = preferences,
@@ -1258,7 +1282,8 @@ private fun SettingsScreenPreview() {
             onOpenContactsOutgoing = {},
             onConfirmContacts = {},
             onDismissContacts = {},
-            onExportLogs = {}
+            onExportLogs = {},
+            onOpenRecordings = {}
         )
     }
 }

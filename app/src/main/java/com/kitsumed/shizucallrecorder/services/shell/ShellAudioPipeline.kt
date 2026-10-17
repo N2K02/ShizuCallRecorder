@@ -144,11 +144,14 @@ class ShellAudioPipeline {
         serverPath: String,
         isDebuggingModeEnabled: Boolean
     ): ParcelFileDescriptor?  {
-        if (isRecordingActive.get()) {
+        // Claim the session before allocating any descriptors, sockets, or coroutines.
+        // This prevents two concurrent starts and lets stopCapture() clean up partial startup.
+        if (!isRecordingActive.compareAndSet(false, true)) {
             AppLogger.w("startCapture() rejected: a session is already active")
             return null
         }
 
+        var pendingReadEnd: ParcelFileDescriptor? = null
         try {
             AppLogger.i("Initialising the ShellService recording pipeline...")
 
@@ -158,6 +161,7 @@ class ShellAudioPipeline {
             val serverJarFile = File(serverPath)
             if (!serverJarFile.exists() || !ServerExtractor.verifyServerHash(serverJarFile)) {
                 AppLogger.w("Server JAR absent or SHA-256 mismatch at $serverPath - aborting")
+                isRecordingActive.set(false)
                 return null
             }
 
@@ -166,6 +170,7 @@ class ShellAudioPipeline {
             val pipe = ParcelFileDescriptor.createPipe()
             val pipeReadEnd  = pipe[0] // --> returned to app process
             val pipeWriteEnd = pipe[1] // --> written by ShellService relay coroutine
+            pendingReadEnd = pipeReadEnd
             audioWriteEnd = pipeWriteEnd
 
             // 3. Create Local Unix-domain Socket Server for the Scrcpy-Server binary
@@ -199,7 +204,6 @@ class ShellAudioPipeline {
                 redirectErrorStream(true)
             }
             scrcpyProcess = scrcpyBuilder.start()
-            isRecordingActive.set(true)
             AppLogger.i("scrcpy-server launched successfully")
 
             // 5. Start Helper coroutines
@@ -207,9 +211,13 @@ class ShellAudioPipeline {
             spawnProcessMonitorCoroutine(scrcpyProcess!!)
 
             AppLogger.i("Recording pipeline established. Returning pipe read-end to app process.")
-            return pipeReadEnd // ← returned to RecordingForegroundService via Binder
+            val result = checkNotNull(pendingReadEnd)
+            pendingReadEnd = null // Ownership transfers to the caller; don't close it during cleanup.
+            return result // ← returned to RecordingForegroundService via Binder
         } catch (e: Exception) {
             AppLogger.e("Critical failure during pipeline startup: ${e.message}", e)
+            runCatching { pendingReadEnd?.close() }
+            pendingReadEnd = null
             stopCapture() // Best-effort cleanup of any partially-allocated resources.
             return null
         }
@@ -236,14 +244,21 @@ class ShellAudioPipeline {
         }
 
         AppLogger.i("Stopping scrcpy-server process...")
-        runCatching { scrcpyProcess?.destroy() }
+        val process = scrcpyProcess
+        runCatching { process?.destroy() }
 
-        // Give the server up to PROCESS_STOP_GRACE_PERIOD_SEC to send its final audio bytes to the server socket.
-        // waitFor() blocks until the process exits or the timeout elapses.
+        // Give the server a grace period to flush its final audio bytes. If it ignores the
+        // graceful stop, forcibly terminate it so a stuck child cannot keep consuming battery.
         try {
-            scrcpyProcess?.waitFor(PROCESS_STOP_GRACE_PERIOD_SEC, TimeUnit.SECONDS)
+            if (process != null && !process.waitFor(PROCESS_STOP_GRACE_PERIOD_SEC, TimeUnit.SECONDS)) {
+                AppLogger.w("scrcpy-server did not stop gracefully; forcing process termination")
+                process.destroyForcibly()
+                process.waitFor(500, TimeUnit.MILLISECONDS)
+            }
         } catch (e: InterruptedException) {
-            AppLogger.w( "Interrupted while waiting for scrcpy-server exit: ${e.message}")
+            Thread.currentThread().interrupt()
+            AppLogger.w("Interrupted while waiting for scrcpy-server exit: ${e.message}")
+            runCatching { process?.destroyForcibly() }
         }
 
         // Wait for the relay job to copy remaining socket data to the pipe for downstream app (Time-bounded).

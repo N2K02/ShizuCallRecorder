@@ -126,11 +126,14 @@ fun DisclaimerScreen(onContinue: () -> Unit, modifier: Modifier = Modifier) {
 
             Text(
                 text = stringResource(
-                    if (hasScrolledToBottom || isTalkBackEnabled) R.string.disclaimer_scrolled_to_end
-                    else R.string.disclaimer_scroll_hint
+                    when {
+                        hasScrolledToBottom -> R.string.disclaimer_scrolled_to_end
+                        isTalkBackEnabled -> R.string.disclaimer_accessibility_hint
+                        else -> R.string.disclaimer_scroll_hint
+                    }
                 ),
                 style = MaterialTheme.typography.labelLarge,
-                color = if (hasScrolledToBottom || isTalkBackEnabled) MaterialTheme.colorScheme.primary
+                color = if (hasScrolledToBottom) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant
             )
 

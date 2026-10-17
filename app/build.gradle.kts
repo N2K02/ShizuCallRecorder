@@ -133,8 +133,8 @@ android {
         minSdk = 30
         targetSdk = 36
         // Keep theses two values hard-coded here and update them per version. (To keep F-Droid compatibility since their parser is very basic)
-        versionCode = 33
-        versionName = "1.4.7" // Clean settings; ignore filters and Shizuku management removed
+        versionCode = 34
+        versionName = "1.4.8" // Final cleanup: remove call filters and Shizuku management controls
 
         buildConfigField("String", "SCRCPY_VERSION", "\"$scrcpyVersion\"")
         buildConfigField("String", "SCRCPY_SERVER_SHA256", "\"$scrcpyServerSha256\"")

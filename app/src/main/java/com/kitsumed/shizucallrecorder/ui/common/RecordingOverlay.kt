@@ -55,6 +55,7 @@ fun RecordingOverlay(
     isRecordingActive: Boolean,
     isRecordingPaused: Boolean,
     onActionClick: () -> Unit,
+    onStopClick: () -> Unit,
     onDragY: (Float) -> Unit,
     onDragEnd: () -> Unit
 ) {
@@ -183,18 +184,36 @@ fun RecordingOverlay(
                 }
             }
 
-            // Drag Handle
+            // Dedicated stop control: stop finalizes the audio file rather than merely pausing it.
+            if (isRecordingActive) {
+                FilledIconButton(
+                    onClick = onStopClick,
+                    modifier = Modifier.size(48.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_stop),
+                        contentDescription = stringResource(R.string.general_stop),
+                        modifier = Modifier.size(25.dp)
+                    )
+                }
+            }
+
+            // Compact drag handle
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .width(26.dp),
+                    .width(22.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_outline_drag_indicator),
                     contentDescription = stringResource(R.string.a11y_overlay_drag_handle),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(42.dp)
+                    modifier = Modifier.size(30.dp)
                 )
             }
         }
@@ -206,7 +225,7 @@ fun RecordingOverlay(
 @Composable
 private fun PreviewRecordingOverlayStandby() {
     ShizuCallRecorderTheme(darkTheme = false) {
-        RecordingOverlay(isRecordingActive = false, isRecordingPaused = false, onActionClick = {}, onDragY = {}, onDragEnd = {})
+        RecordingOverlay(isRecordingActive = false, isRecordingPaused = false, onActionClick = {}, onStopClick = {}, onDragY = {}, onDragEnd = {})
     }
 }
 
@@ -214,7 +233,7 @@ private fun PreviewRecordingOverlayStandby() {
 @Composable
 private fun PreviewRecordingOverlayRecording() {
     ShizuCallRecorderTheme(darkTheme = false) {
-        RecordingOverlay(isRecordingActive = true, isRecordingPaused = false, onActionClick = {}, onDragY = {}, onDragEnd = {})
+        RecordingOverlay(isRecordingActive = true, isRecordingPaused = false, onActionClick = {}, onStopClick = {}, onDragY = {}, onDragEnd = {})
     }
 }
 
@@ -222,6 +241,6 @@ private fun PreviewRecordingOverlayRecording() {
 @Composable
 private fun PreviewRecordingOverlayPaused() {
     ShizuCallRecorderTheme(darkTheme = false) {
-        RecordingOverlay(isRecordingActive = true, isRecordingPaused = true, onActionClick = {}, onDragY = {}, onDragEnd = {})
+        RecordingOverlay(isRecordingActive = true, isRecordingPaused = true, onActionClick = {}, onStopClick = {}, onDragY = {}, onDragEnd = {})
     }
 }

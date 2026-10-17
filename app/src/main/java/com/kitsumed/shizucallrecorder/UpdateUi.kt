@@ -204,6 +204,7 @@ private fun Notes(release: AppUpdater.Release) {
 fun UpdateFooterBar(
     appName: String,
     modifier: Modifier = Modifier,
+    onOpenUpdates: () -> Unit = {},
     aboutAction: @Composable () -> Unit = {},
 ) {
     val state by AppUpdater.state.collectAsState()
@@ -268,7 +269,7 @@ fun UpdateFooterBar(
                         Text("  Checking…", style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
                     }
                     is AppUpdater.State.Available -> Button(
-                        onClick = { AppUpdater.update(s.release) }, contentPadding = small, modifier = buttonModifier,
+                        onClick = onOpenUpdates, contentPadding = small, modifier = buttonModifier,
                     ) { Text("Update to ${s.release.versionName}", style = MaterialTheme.typography.labelMedium) }
                     is AppUpdater.State.Downloading -> Text(
                         s.progress?.let { "Downloading ${(it * 100).toInt()}%" } ?: "Downloading…",
@@ -284,7 +285,7 @@ fun UpdateFooterBar(
                         contentPadding = small, modifier = buttonModifier,
                     ) { Text("Allow installs", style = MaterialTheme.typography.labelMedium) }
                     is AppUpdater.State.UpToDate -> FilledTonalButton(
-                        onClick = { AppUpdater.check(manual = true) }, contentPadding = small, modifier = buttonModifier,
+                        onClick = onOpenUpdates, contentPadding = small, modifier = buttonModifier,
                     ) { Text("Up to date ✓", style = MaterialTheme.typography.labelMedium) }
                     else -> FilledTonalButton(
                         onClick = { AppUpdater.check(manual = true) }, contentPadding = small, modifier = buttonModifier,
@@ -310,5 +311,61 @@ fun UpdateFooterBar(
                 TextButton(onClick = { showVersionDetails = false }) { Text("Close") }
             }
         )
+    }
+}
+
+
+/**
+ * Dedicated update page. The update card remains visible at the top while checking,
+ * downloading, waiting for install permission, or reporting an update error.
+ */
+@Composable
+fun UpdatesScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
+    val state by AppUpdater.state.collectAsState()
+
+    LaunchedEffect(Unit) {
+        if (state is AppUpdater.State.Idle || state is AppUpdater.State.UpToDate) {
+            AppUpdater.check(manual = true)
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        TextButton(onClick = onBack) { Text("← Back to settings") }
+        Text(
+            "Updates",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            "Installed version: ${AppUpdater.installedVersionName}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        UpdateCard(modifier = Modifier.fillMaxWidth())
+
+        if (state is AppUpdater.State.UpToDate) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Title("You're up to date")
+                    Text("You're using the latest available version of ShizuCallRecorder.")
+                    Button(onClick = { AppUpdater.check(manual = true) }) {
+                        Text("Check again")
+                    }
+                }
+            }
+        } else if (state is AppUpdater.State.Idle) {
+            Button(onClick = { AppUpdater.check(manual = true) }) {
+                Text("Check for updates")
+            }
+        }
     }
 }

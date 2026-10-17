@@ -129,6 +129,16 @@ fun DisclaimerScreen(onContinue: () -> Unit, modifier: Modifier = Modifier) {
 
             HyperlinkText(stringResource(R.string.disclaimer_introduction), links)
 
+            Text(
+                text = stringResource(
+                    if (hasScrolledToBottom || isTalkBackEnabled) R.string.disclaimer_scrolled_to_end
+                    else R.string.disclaimer_scroll_hint
+                ),
+                style = MaterialTheme.typography.labelLarge,
+                color = if (hasScrolledToBottom || isTalkBackEnabled) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             Spacer(modifier = Modifier.height(1.dp))
 
             // Elevated card gives visual depth to the scrollable disclaimer body.
@@ -152,42 +162,31 @@ fun DisclaimerScreen(onContinue: () -> Unit, modifier: Modifier = Modifier) {
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            // Acknowledgement checkbox, only becomes interactive after the user scrolls down.
-            AnimatedContent(
-                targetState = hasScrolledToBottom || isTalkBackEnabled,
-                transitionSpec = {
-                    val enterFade = fadeIn(tween(600))
-                    val exitFade = fadeOut(tween(500))
-
-                    enterFade togetherWith exitFade                },
-                label = "CheckboxUnlockTransition"
-            ) { unlocked ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .toggleable(
-                            value = hasAccepted,
-                            onValueChange = { if (unlocked) hasAccepted = it },
-                            role = Role.Checkbox,
-                            enabled = unlocked
-                        )
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Checkbox(
-                        checked = hasAccepted,
-                        onCheckedChange = null, // Handled by the Row's toggleable modifier above.
-                        enabled = unlocked
+            // Keep the checkbox visible from the start and explain why it is disabled.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = hasAccepted,
+                        onValueChange = { if (hasScrolledToBottom || isTalkBackEnabled) hasAccepted = it },
+                        role = Role.Checkbox,
+                        enabled = hasScrolledToBottom || isTalkBackEnabled
                     )
-                    Text(
-                        text = stringResource(R.string.disclaimer_checkbox_label),
-                        style = MaterialTheme.typography.bodyMedium,
-                        // Dim the label to signal it's not yet interactive.
-                        color = if (unlocked) MaterialTheme.colorScheme.onBackground
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Checkbox(
+                    checked = hasAccepted,
+                    onCheckedChange = null,
+                    enabled = hasScrolledToBottom || isTalkBackEnabled
+                )
+                Text(
+                    text = stringResource(R.string.disclaimer_checkbox_label),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (hasScrolledToBottom || isTalkBackEnabled) MaterialTheme.colorScheme.onBackground
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             // Continue button, enabled only when all three gates are satisfied.

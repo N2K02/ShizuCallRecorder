@@ -51,11 +51,6 @@ interface SettingsActions {
     fun setAutoRecordIncoming(enabled: Boolean)
     fun setAutoRecordOutgoing(enabled: Boolean)
     fun setVibrationEnabled(enabled: Boolean)
-    fun setIgnoreAnonymousIncoming(enabled: Boolean)
-    fun setIgnoreCrossCountryIncoming(enabled: Boolean)
-    fun setIgnoreCrossCountryOutgoing(enabled: Boolean)
-    fun setIgnoreContactsModeIncoming(modeEnum: AppPreferences.IgnoreContactsMode)
-    fun setIgnoreContactsModeOutgoing(modeEnum: AppPreferences.IgnoreContactsMode)
     fun setAudioSource(source: String)
     fun setAudioCodec(codec: String)
     fun setAudioBitRate(bitRate: Int)
@@ -69,10 +64,6 @@ interface SettingsActions {
     fun triggerDebugAction(action: DebugAction)
     fun exportLogs(uri: android.net.Uri)
     fun getAppVersion(): String
-    fun setShizukuAutoManageEnabled(enabled: Boolean)
-    fun setShizukuStartOnRecordEnabled(enabled: Boolean)
-    fun setShizukuKeepAliveEnabled(enabled: Boolean)
-    fun setShizukuAuthKey(key: String)
     fun setCallDetectionMode(mode: CallDetectionMode)
     fun setRecordThirdPartyCalls(enabled: Boolean)
     fun setPostRecordingFileNotification(enabled: Boolean)
@@ -175,53 +166,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         refresh()
     }
 
-    /** When enabled, anonymous calls (no caller ID) are not recorded automatically.
-     *
-     * @param enabled `true` to skip recording calls with no caller ID.
-     */
-    override fun setIgnoreAnonymousIncoming(enabled: Boolean) {
-        preferences.setIgnoreAnonymousIncomingEnabled(enabled)
-        // When we disable anonymous ignore, we automatically disable cross country ignore because both a related. Anonymous call may as well be cross-country.
-        if (!enabled) preferences.setIgnoreCrossCountryIncomingEnabled(false)
-        refresh()
-    }
-
-    /**
-     * Sets whether to ignore incoming cross-country calls.
-     */
-    override fun setIgnoreCrossCountryIncoming(enabled: Boolean) {
-        preferences.setIgnoreCrossCountryIncomingEnabled(enabled)
-        refresh()
-    }
-
-    /**
-     * Sets whether to ignore outgoing cross-country calls.
-     */
-    override fun setIgnoreCrossCountryOutgoing(enabled: Boolean) {
-        preferences.setIgnoreCrossCountryOutgoingEnabled(enabled)
-        refresh()
-    }
-
-    /**
-     * Sets which incoming contacts to ignore.
-     *
-     * @param modeEnum The [AppPreferences.IgnoreContactsMode] enum value to set.
-     */
-    override fun setIgnoreContactsModeIncoming(modeEnum: AppPreferences.IgnoreContactsMode) {
-        preferences.setIgnoreContactsModeIncoming(modeEnum)
-        refresh()
-    }
-
-    /**
-     * Sets which outgoing contacts to ignore.
-     *
-     * @param modeEnum The [AppPreferences.IgnoreContactsMode] enum value to set.
-     */
-    override fun setIgnoreContactsModeOutgoing(modeEnum: AppPreferences.IgnoreContactsMode) {
-        preferences.setIgnoreContactsModeOutgoing(modeEnum)
-        refresh()
-    }
-
     /** Saves the audio source to use for recording (e.g. "mic-voice-communication").
      *
      * @param source The audio source key passed to scrcpy's `audio_source` parameter.
@@ -293,38 +237,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             LocaleListCompat.forLanguageTags(languageCode)
         }
         AppCompatDelegate.setApplicationLocales(localeList)
-        refresh()
-    }
-
-    // -------- Security settings
-
-    /** Enables or disables the automatic management of Shizuku using broadcasts.
-     *
-     * @param enabled `true` to let the app start/stop Shizuku.
-     */
-    override fun setShizukuAutoManageEnabled(enabled: Boolean) {
-        preferences.setShizukuAutoManageEnabled(enabled)
-        refresh()
-    }
-
-    /** Enables or disables starting Shizuku only when recording starts. */
-    override fun setShizukuStartOnRecordEnabled(enabled: Boolean) {
-        preferences.setShizukuStartOnRecordEnabled(enabled)
-        refresh()
-    }
-
-    /** Enables or disables keeping Shizuku alive (not sending stop intent). */
-    override fun setShizukuKeepAliveEnabled(enabled: Boolean) {
-        preferences.setShizukuKeepAliveEnabled(enabled)
-        refresh()
-    }
-
-    /** Saves the Shizuku auth key used to send the start/stop broadcasts.
-     *
-     * @param key The auth key string.
-     */
-    override fun setShizukuAuthKey(key: String) {
-        preferences.setShizukuAuthKey(key)
         refresh()
     }
 

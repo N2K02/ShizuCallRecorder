@@ -53,8 +53,10 @@ jobs:
           echo "Release version: $VERSION"
 
           if git tag --list "v$VERSION" | grep -Fxq "v$VERSION"; then
-            echo "::error::Release v$VERSION already exists. Update versionName and versionCode in app/build.gradle.kts before creating another release."
-            exit 1
+            echo "::notice::Release v$VERSION already exists; this run will build an APK artifact without replacing that release."
+            echo "publish_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish_release=true" >> "$GITHUB_OUTPUT"
           fi
 
           previous="$(git tag -l 'v*' | grep -E '^v[0-9]+\.[0-9]+(\.[0-9]+)?$' | sort -V | tail -1 || true)"
@@ -124,7 +126,16 @@ jobs:
 
           "$BT/apksigner" verify --verbose --print-certs "$APP-$VERSION.apk" | grep -E "Signer.*(DN|SHA-256 digest)"
 
+      - name: Upload APK build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShizuCallRecorder-${{ steps.release.outputs.version }}-${{ github.run_number }}
+          path: ShizuCallRecorder-${{ steps.release.outputs.version }}.apk
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Publish APK as a release
+        if: steps.release.outputs.publish_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.release.outputs.version }}

@@ -29,6 +29,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -177,7 +181,11 @@ private fun Notes(release: AppUpdater.Release) {
  * update is in progress. Put it in the Scaffold's bottomBar.
  */
 @Composable
-fun UpdateFooterBar(appName: String, modifier: Modifier = Modifier) {
+fun UpdateFooterBar(
+    appName: String,
+    modifier: Modifier = Modifier,
+    aboutAction: @Composable () -> Unit = {},
+) {
     val state by AppUpdater.state.collectAsState()
     var showVersionDetails by androidx.compose.runtime.remember { mutableStateOf(false) }
     val activity = LocalContext.current.activity()
@@ -228,6 +236,7 @@ fun UpdateFooterBar(appName: String, modifier: Modifier = Modifier) {
                         .padding(start = 10.dp)
                         .clickable { showVersionDetails = true },
                 )
+                aboutAction()
                 val small = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
                 val buttonModifier = Modifier.heightIn(min = 32.dp)
                 when (val s = state) {

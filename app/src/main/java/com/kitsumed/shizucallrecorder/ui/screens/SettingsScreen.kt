@@ -77,7 +77,6 @@ import com.kitsumed.shizucallrecorder.system.openGithubWiki
 import com.kitsumed.shizucallrecorder.system.storage.SafHelper
 import com.kitsumed.shizucallrecorder.system.takePersistableFolderPermission
 import com.kitsumed.shizucallrecorder.ui.common.ContactSelectionDialog
-import com.kitsumed.shizucallrecorder.ui.common.FileNameFormatDialog
 import com.kitsumed.shizucallrecorder.ui.common.M3DropdownField
 import com.kitsumed.shizucallrecorder.ui.common.OptionItem
 import com.kitsumed.shizucallrecorder.ui.common.ToggleListItem
@@ -597,7 +596,6 @@ private fun RecordingSection(
     val recordingFolderLabel = remember(updateTrigger) { SafHelper.getFolderDisplayNameOrNull(context, preferences.getRecordingFolderUri()) }
     val callDetectionMode = remember(updateTrigger) { preferences.getCallDetectionMode() }
     val recordThirdPartyCalls = remember(updateTrigger) { preferences.isRecordThirdPartyCallsEnabled() }
-    val fileNameFormat = remember(updateTrigger) { preferences.getFileNameTemplate() }
     val postRecordingFileNotifications = remember(updateTrigger) { preferences.isPostRecordingFileActionsNotificationEnabled() }
     val isVibrationEnabled = remember(updateTrigger) { preferences.isVibrationEnabled() }
     val autoRecordIncoming = remember(updateTrigger) { preferences.isAutoRecordIncomingEnabled() }
@@ -610,7 +608,6 @@ private fun RecordingSection(
     val ignoredContactsIncomingCount = remember(updateTrigger) { preferences.getIgnoredContactsIncoming().size }
     val ignoredContactsOutgoingCount = remember(updateTrigger) { preferences.getIgnoredContactsOutgoing().size }
 
-    var showFileNameFormatDialog by remember { mutableStateOf(false) }
 
     SettingsSection(title = stringResource(R.string.settings_section_recording)) {
         val detectionOptions = CallDetectionMode.entries.map { mode ->
@@ -683,26 +680,6 @@ private fun RecordingSection(
                     contentDescription = null
                 )
             },
-        )
-
-        ListItem(
-            modifier = Modifier
-                .clickable { showFileNameFormatDialog = true }
-                .semantics(mergeDescendants = true) {},
-            headlineContent = { Text(stringResource(R.string.settings_file_name_template)) },
-            supportingContent = {
-                Text(
-                    text = fileNameFormat,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            },
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null
-                )
-            },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
 
         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
@@ -805,17 +782,6 @@ private fun RecordingSection(
         }
     }
 
-    if (showFileNameFormatDialog) {
-        FileNameFormatDialog(
-            initialFormat = fileNameFormat,
-            activeMode = preferences.getCallDetectionMode(),
-            onConfirm = { format ->
-                actions.setFileNameTemplate(format)
-                showFileNameFormatDialog = false
-            },
-            onDismiss = { showFileNameFormatDialog = false }
-        )
-    }
 }
 
 /** Shows the audio source, codec, and bit-rate dropdowns.

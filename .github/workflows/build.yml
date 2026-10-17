@@ -33,6 +33,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "9.6.0"
+
       - name: Work out version and release notes
         id: release
         run: |
@@ -82,9 +87,7 @@ jobs:
         run: |
           set -o pipefail
           echo "Android SDK: ${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
-          yes | "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
-          chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace assembleRelease 2>&1 | tee build.log || {
+          gradle --no-daemon --stacktrace assembleRelease 2>&1 | tee build.log || {
             msg=$(grep -E '^e: |error:|What went wrong|Dependency .* requires|compileSdk|Android Gradle plugin' -A3 build.log | head -80 | sed -e 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')
             echo "::error title=Build failed::$msg"
             exit 1

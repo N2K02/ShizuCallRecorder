@@ -51,15 +51,6 @@ class AppPreferences(context: Context) {
         const val AUTO_RECORD_OUTGOING = true
 
         
-        // --- Filters & Contacts ---
-        const val IGNORE_ANONYMOUS_INCOMING = false
-        const val IGNORE_CROSS_COUNTRY_INCOMING = false
-        const val IGNORE_CROSS_COUNTRY_OUTGOING = false
-        val IGNORE_CONTACTS_MODE_INCOMING = IgnoreContactsMode.NONE
-        val IGNORE_CONTACTS_MODE_OUTGOING = IgnoreContactsMode.NONE
-        val IGNORED_CONTACTS_INCOMING = emptySet<String>()
-        val IGNORED_CONTACTS_OUTGOING = emptySet<String>()
-        
         // --- Developer & Debug ---
         const val LOGGING_ENABLED = false
         const val DEBUG_ENABLED = false
@@ -77,11 +68,6 @@ class AppPreferences(context: Context) {
         const val SHOW_TOASTS = true
         const val SHOW_RECORDING_OVERLAY = false
         const val OVERLAY_Y_POSITION = -1
-        // --- Security ---
-        const val SHIZUKU_AUTO_MANAGE = false
-        const val SHIZUKU_START_ON_RECORD = false
-        const val SHIZUKU_KEEP_ALIVE = false
-        const val SHIZUKU_AUTH_KEY = ""
     }
 
     /**
@@ -100,13 +86,6 @@ class AppPreferences(context: Context) {
         POST_RECORDING_FILE_ACTIONS_NOTIFICATION_ENABLED ("post_recording_file_actions_notification_enabled"),
         AUTO_RECORD_INCOMING("auto_record_incoming"),
         AUTO_RECORD_OUTGOING("auto_record_outgoing"),
-        IGNORE_ANONYMOUS_INCOMING("ignore_anonymous_incoming"),
-        IGNORE_CROSS_COUNTRY_INCOMING("ignore_cross_country_incoming"),
-        IGNORE_CROSS_COUNTRY_OUTGOING("ignore_cross_country_outgoing"),
-        IGNORE_CONTACTS_MODE_INCOMING("ignore_contacts_mode_incoming"),
-        IGNORE_CONTACTS_MODE_OUTGOING("ignore_contacts_mode_outgoing"),
-        IGNORED_CONTACTS_INCOMING("ignored_contacts_incoming"),
-        IGNORED_CONTACTS_OUTGOING("ignored_contacts_outgoing"),
         LOGGING_ENABLED("logging_enabled"),
         DEBUG_ENABLED("debug_enabled"),
         DEBUG_CALLER_NUMBER("debug_caller_number"),
@@ -118,42 +97,11 @@ class AppPreferences(context: Context) {
         SHOW_TOASTS("show_toasts"),
         SHOW_RECORDING_OVERLAY("show_recording_overlay"),
         OVERLAY_Y_POSITION("overlay_y_position"),
-        SHIZUKU_AUTO_MANAGE("shizuku_auto_manage"),
-        SHIZUKU_START_ON_RECORD("shizuku_start_on_record"),
-        SHIZUKU_KEEP_ALIVE("shizuku_keep_alive"),
-        SHIZUKU_AUTH_KEY("shizuku_auth_key"),
         CALL_DETECTION_MODE("call_detection_mode"),
         RECORD_THIRD_PARTY_CALLS("record_third_party_calls");
     }
 
     // -------- Nested enums
-
-    /**
-     * Controls which contacts are excluded from automatic recording for a given call direction.
-     *
-     * @param key The lowercase string stored in SharedPreferences.
-     */
-    enum class IgnoreContactsMode(val key: String) {
-        /** Record all contacts; ignore no one. */
-        NONE("none"),
-        /** Skip recording for all numbers that appear in the device's Contacts. */
-        ALL("all"),
-        /** Skip recording only for the numbers explicitly added to the ignore list. */
-        SELECTED("selected");
-
-        companion object {
-            /**
-             * Parses a key string back into an enum constant.
-             *
-             * @throws IllegalArgumentException if no matching entry is found.
-             * @param key The string stored in SharedPreferences.
-             * @return The matching [IgnoreContactsMode], or throws an error if unrecognized.
-             */
-            fun fromKey(key: String?): IgnoreContactsMode {
-                return entries.firstOrNull { it.key == key } ?: throw IllegalArgumentException("Unknown IgnoreContactsMode key: $key")
-            }
-        }
-    }
 
     /**
      * Controls the app theme.
@@ -293,50 +241,6 @@ class AppPreferences(context: Context) {
     /** Sets whether auto-recording for outgoing calls is enabled. */
     fun setAutoRecordOutgoingEnabled(enabled: Boolean) = setBoolean(Key.AUTO_RECORD_OUTGOING, enabled)
 
-    // -------- Filters & Contacts --------
-
-    /** Checks if recording should be ignored for incoming anonymous calls. */
-    fun isIgnoreAnonymousIncomingEnabled() = getBoolean(Key.IGNORE_ANONYMOUS_INCOMING, DefaultsValue.IGNORE_ANONYMOUS_INCOMING)
-    
-    /** Sets whether to ignore recording for incoming anonymous calls. */
-    fun setIgnoreAnonymousIncomingEnabled(enabled: Boolean) = setBoolean(Key.IGNORE_ANONYMOUS_INCOMING, enabled)
-
-    /** Checks if recording should be ignored for incoming cross-country calls. */
-    fun isIgnoreCrossCountryIncomingEnabled() = getBoolean(Key.IGNORE_CROSS_COUNTRY_INCOMING, DefaultsValue.IGNORE_CROSS_COUNTRY_INCOMING)
-    
-    /** Sets whether to ignore recording for incoming cross-country calls. */
-    fun setIgnoreCrossCountryIncomingEnabled(enabled: Boolean) = setBoolean(Key.IGNORE_CROSS_COUNTRY_INCOMING, enabled)
-
-    /** Checks if recording should be ignored for outgoing cross-country calls. */
-    fun isIgnoreCrossCountryOutgoingEnabled() = getBoolean(Key.IGNORE_CROSS_COUNTRY_OUTGOING, DefaultsValue.IGNORE_CROSS_COUNTRY_OUTGOING)
-    
-    /** Sets whether to ignore recording for outgoing cross-country calls. */
-    fun setIgnoreCrossCountryOutgoingEnabled(enabled: Boolean) = setBoolean(Key.IGNORE_CROSS_COUNTRY_OUTGOING, enabled)
-
-    /** Gets the contacts mode defining which incoming calls are ignored. */
-    fun getIgnoreContactsModeIncoming() = IgnoreContactsMode.fromKey(getString(Key.IGNORE_CONTACTS_MODE_INCOMING, DefaultsValue.IGNORE_CONTACTS_MODE_INCOMING.key))
-    
-    /** Sets the contacts mode defining which incoming calls are ignored. */
-    fun setIgnoreContactsModeIncoming(mode: IgnoreContactsMode) = setString(Key.IGNORE_CONTACTS_MODE_INCOMING, mode.key)
-
-    /** Gets the contacts mode defining which outgoing calls are ignored. */
-    fun getIgnoreContactsModeOutgoing() = IgnoreContactsMode.fromKey(getString(Key.IGNORE_CONTACTS_MODE_OUTGOING, DefaultsValue.IGNORE_CONTACTS_MODE_OUTGOING.key))
-    
-    /** Sets the contacts mode defining which outgoing calls are ignored. */
-    fun setIgnoreContactsModeOutgoing(mode: IgnoreContactsMode) = setString(Key.IGNORE_CONTACTS_MODE_OUTGOING, mode.key)
-
-    /** Gets the set of specific contact lookup id to ignore for incoming calls. */
-    fun getIgnoredContactsIncoming() = getStringSet(Key.IGNORED_CONTACTS_INCOMING, DefaultsValue.IGNORED_CONTACTS_INCOMING)
-    
-    /** Sets the set of specific contact lookup id to ignore for incoming calls. */
-    fun setIgnoredContactsIncoming(numbers: Set<String>) = setStringSet(Key.IGNORED_CONTACTS_INCOMING, numbers)
-
-    /** Gets the set of specific contact lookup id to ignore for outgoing calls. */
-    fun getIgnoredContactsOutgoing() = getStringSet(Key.IGNORED_CONTACTS_OUTGOING, DefaultsValue.IGNORED_CONTACTS_OUTGOING)
-    
-    /** Sets the set of specific contact lookup id to ignore for outgoing calls. */
-    fun setIgnoredContactsOutgoing(numbers: Set<String>) = setStringSet(Key.IGNORED_CONTACTS_OUTGOING, numbers)
-
     // -------- Debug --------
 
     /** Checks if logging features are enabled. */
@@ -409,29 +313,5 @@ class AppPreferences(context: Context) {
     /** Sets the Y position of the recording overlay. */
     fun setOverlayYPosition(y: Int) = setInt(Key.OVERLAY_Y_POSITION, y)
 
-    // -------- Security --------
 
-    /** Checks if the app should manage starting/stopping Shizuku. */
-    fun isShizukuAutoManageEnabled() = getBoolean(Key.SHIZUKU_AUTO_MANAGE, DefaultsValue.SHIZUKU_AUTO_MANAGE)
-
-    /** Sets whether the app should manage starting/stopping Shizuku. */
-    fun setShizukuAutoManageEnabled(enabled: Boolean) = setBoolean(Key.SHIZUKU_AUTO_MANAGE, enabled)
-
-    /** Checks if Shizuku should only start when recording starts. */
-    fun isShizukuStartOnRecordEnabled() = getBoolean(Key.SHIZUKU_START_ON_RECORD, DefaultsValue.SHIZUKU_START_ON_RECORD)
-
-    /** Sets whether Shizuku should only start when recording starts. */
-    fun setShizukuStartOnRecordEnabled(enabled: Boolean) = setBoolean(Key.SHIZUKU_START_ON_RECORD, enabled)
-
-    /** Checks if Shizuku should be kept alive when no longer needed. */
-    fun isShizukuKeepAliveEnabled() = getBoolean(Key.SHIZUKU_KEEP_ALIVE, DefaultsValue.SHIZUKU_KEEP_ALIVE)
-
-    /** Sets whether Shizuku should be kept alive when no longer needed. */
-    fun setShizukuKeepAliveEnabled(enabled: Boolean) = setBoolean(Key.SHIZUKU_KEEP_ALIVE, enabled)
-
-    /** Gets the Shizuku auth key. */
-    fun getShizukuAuthKey() = getString(Key.SHIZUKU_AUTH_KEY, DefaultsValue.SHIZUKU_AUTH_KEY) ?: DefaultsValue.SHIZUKU_AUTH_KEY
-
-    /** Sets the Shizuku auth key. */
-    fun setShizukuAuthKey(key: String) = setString(Key.SHIZUKU_AUTH_KEY, key)
 }

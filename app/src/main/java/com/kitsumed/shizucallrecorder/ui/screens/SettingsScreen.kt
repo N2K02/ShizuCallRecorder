@@ -69,7 +69,6 @@ import com.kitsumed.shizucallrecorder.ui.screens.RecordingsActivity
 import com.kitsumed.shizucallrecorder.data.AppPreferences
 import com.kitsumed.shizucallrecorder.integrations.scrcpy.ScrcpyAudioCodec
 import com.kitsumed.shizucallrecorder.integrations.scrcpy.ScrcpyAudioSource
-import com.kitsumed.shizucallrecorder.integrations.scrcpy.ScrcpyConfig
 import com.kitsumed.shizucallrecorder.services.callDetection.CallDetectionMode
 import com.kitsumed.shizucallrecorder.system.PersistentFolderPickerContract
 import com.kitsumed.shizucallrecorder.system.openGithubReportIssue
@@ -211,7 +210,7 @@ fun SettingsContent(
                 )
             }
             item { UpdateCard() }
-            item { AboutSection(versionString = actions.getAppVersion()) }
+            item { AboutSection() }
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenRecordings),
@@ -270,21 +269,13 @@ fun SettingsContent(
 /** Shows the app version, server version, clipboard buttons, and a GitHub link.
  */
 @Composable
-private fun AboutSection(versionString: String) {
+private fun AboutSection() {
     val context = LocalContext.current
-    val serverVersion = ScrcpyConfig.SCRCPY_VERSION
 
     var showLicensesDialog by remember() { mutableStateOf(false) }
     var showSponsorScreen by remember() { mutableStateOf(false) }
 
     SettingsSection(title = stringResource(R.string.settings_section_about)) {
-        ListItem(
-            headlineContent = { Text(versionString) },
-            supportingContent = {
-                Text(stringResource(R.string.settings_scrcpy_server, serverVersion))
-            },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)

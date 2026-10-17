@@ -549,6 +549,7 @@ private fun PermissionsScreenPreview() {
                 callDetectionMode = CallDetectionMode.PhoneState,
                 callDetectionModeGrantedPermissions = emptySet()
             ),
+            onContinue = {},
             onGrantAccessButtonClick = {},
             onCallDetectionModeChanged = {},
             isProcessingGrantingRequest = false

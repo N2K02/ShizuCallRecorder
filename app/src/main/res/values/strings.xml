@@ -237,6 +237,15 @@
     <string name="settings_audio_bitrate">Audio bit rate</string>
     <string name="audio_bitrate_kbps" translatable="false">%1$d kbps</string>
 
+    <string name="audio_profile_help">After a call, listen to the recording and confirm whether the audio is clear. The app remembers confirmed sources separately for each call type on this phone.</string>
+    <string name="audio_profile_sim">SIM call audio</string>
+    <string name="audio_profile_third_party">Third-party call audio</string>
+    <string name="audio_profile_saved_source">Saved source: %1$s</string>
+    <string name="audio_profile_test_source">Source to test: %1$s</string>
+    <string name="audio_profile_confirm_good">Audio is good</string>
+    <string name="audio_profile_try_next">Audio is not good · Try next</string>
+    <string name="audio_profile_reset">Reset to default</string>
+    <string name="audio_source_cannot_work_on_phone">Audio source cannot work on this phone</string>
     <string name="settings_audio_source">Audio source</string>
     <string name="audio_source_voice_comm" translatable="false">Voice communication mic</string>
     <string name="audio_source_voice_comm_description">Microphone audio source tuned for voice communications. Built-in echo cancellation.</string>

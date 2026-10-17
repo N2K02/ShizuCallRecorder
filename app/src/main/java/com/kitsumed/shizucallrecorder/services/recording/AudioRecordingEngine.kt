@@ -125,9 +125,17 @@ class AudioRecordingEngine {
 
         val codecEnum = ScrcpyAudioCodec.fromKey(preferences.getAudioCodec())
         val bitRate = preferences.getAudioBitRate().takeIf { it > 0 } ?: codecEnum.defaultBitRate
-        val audioSourceEnum = ScrcpyAudioSource.fromKey(preferences.getAudioSource())
+        // SIM and third-party profiles are independent. Phone State mode cannot reliably identify VoIP calls.
+        val packageName = metadata.packageName
+        val telecomManager = context.getSystemService(android.telecom.TelecomManager::class.java)
+        val isThirdPartyCall = !packageName.isNullOrBlank() &&
+            packageName != telecomManager?.systemDialerPackage &&
+            packageName != telecomManager?.defaultDialerPackage &&
+            packageName != "com.android.phone"
+        val audioSourceEnum = ScrcpyAudioSource.fromKey(preferences.getAudioSourceForCall(isThirdPartyCall))
+        preferences.recordAudioSourceUsed(isThirdPartyCall, audioSourceEnum.cliKey)
 
-        AppLogger.i( "Starting recording pipeline: source=${audioSourceEnum.cliKey} codec=${codecEnum.cliKey} bitrate=$bitRate")
+        AppLogger.i( "Starting recording pipeline: source=${audioSourceEnum.cliKey} callType=${if (isThirdPartyCall) "third-party" else "SIM"} codec=${codecEnum.cliKey} bitrate=$bitRate")
 
         val fileName = RecordingFileNameFormatter.formatFileName(context, metadata, codecEnum)
 

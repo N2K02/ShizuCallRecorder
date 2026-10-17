@@ -52,6 +52,9 @@ interface SettingsActions {
     fun setAutoRecordOutgoing(enabled: Boolean)
     fun setVibrationEnabled(enabled: Boolean)
     fun setAudioSource(source: String)
+    fun confirmAudioSource(isThirdParty: Boolean)
+    fun tryNextAudioSource(isThirdParty: Boolean): Boolean
+    fun resetAudioSourceProfile(isThirdParty: Boolean)
     fun setAudioCodec(codec: String)
     fun setAudioBitRate(bitRate: Int)
     fun setThemeMode(mode: AppPreferences.ThemeMode)
@@ -179,6 +182,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      *
      * @param codec The codec key string.
      */
+
+    override fun confirmAudioSource(isThirdParty: Boolean) {
+        val source = preferences.confirmAudioSourceForCall(isThirdParty)
+        AppLogger.i("User confirmed audio source $source for ${if (isThirdParty) "third-party" else "SIM"} calls")
+        refresh()
+    }
+
+    override fun tryNextAudioSource(isThirdParty: Boolean): Boolean {
+        val next = preferences.tryNextAudioSourceForCall(isThirdParty)
+        if (next != null) AppLogger.i("Queued audio source $next for ${if (isThirdParty) "third-party" else "SIM"} calls")
+        refresh()
+        return next != null
+    }
+
+    override fun resetAudioSourceProfile(isThirdParty: Boolean) {
+        preferences.resetAudioSourceProfile(isThirdParty)
+        refresh()
+    }
+
     override fun setAudioCodec(codec: String) {
         preferences.setAudioCodec(codec)
         ScrcpyAudioCodec.fromKey(codec).let {

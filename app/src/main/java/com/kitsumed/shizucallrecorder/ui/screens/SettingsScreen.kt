@@ -13,6 +13,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
@@ -639,6 +640,60 @@ private fun AudioSection(preferences: AppPreferences, updateTrigger: Int, action
             onOptionSelected = { actions.setAudioBitRate(it.key.toInt()) },
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
         )
+
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        Text(
+            text = stringResource(R.string.audio_profile_help),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        AudioProfileControls(preferences, updateTrigger, actions, isThirdParty = false)
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+        AudioProfileControls(preferences, updateTrigger, actions, isThirdParty = true)
+    }
+}
+
+@Composable
+private fun AudioProfileControls(
+    preferences: AppPreferences,
+    updateTrigger: Int,
+    actions: SettingsActions,
+    isThirdParty: Boolean
+) {
+    val context = LocalContext.current
+    val source = remember(updateTrigger) {
+        runCatching { ScrcpyAudioSource.fromKey(preferences.getAudioSourceForCall(isThirdParty)) }.getOrNull()
+    }
+    val confirmed = remember(updateTrigger) { preferences.isAudioSourceConfirmed(isThirdParty) }
+    val title = stringResource(if (isThirdParty) R.string.audio_profile_third_party else R.string.audio_profile_sim)
+    val sourceName = source?.titleResId?.let { stringResource(it) } ?: stringResource(R.string.settings_audio_source)
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(
+            text = stringResource(if (confirmed) R.string.audio_profile_saved_source else R.string.audio_profile_test_source, sourceName),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        OutlinedButton(onClick = { actions.confirmAudioSource(isThirdParty) }, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.audio_profile_confirm_good))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(
+                onClick = {
+                    if (!actions.tryNextAudioSource(isThirdParty)) {
+                        Toast.makeText(context, context.getString(R.string.audio_source_cannot_work_on_phone), Toast.LENGTH_LONG).show()
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) { Text(stringResource(R.string.audio_profile_try_next)) }
+            TextButton(onClick = { actions.resetAudioSourceProfile(isThirdParty) }, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.audio_profile_reset))
+            }
+        }
     }
 }
 

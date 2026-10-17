@@ -269,6 +269,90 @@ class AppPreferences(context: Context) {
     /** Sets the configured audio source. */
     fun setAudioSource(source: String) = setString(Key.AUDIO_SOURCE, source)
 
+
+    // -------- Per-call-type audio source learning --------
+
+    private fun audioProfileKey(isThirdParty: Boolean, suffix: String): String =
+        "audio_profile_${if (isThirdParty) "third_party" else "sim"}_$suffix"
+
+    /** Returns a pending test source, confirmed source, or the global default in that order. */
+    fun getAudioSourceForCall(isThirdParty: Boolean): String =
+        prefs.getString(audioProfileKey(isThirdParty, "pending"), null)
+            ?: prefs.getString(audioProfileKey(isThirdParty, "confirmed"), null)
+            ?: getAudioSource()
+
+    fun isAudioSourceConfirmed(isThirdParty: Boolean): Boolean =
+        prefs.getString(audioProfileKey(isThirdParty, "confirmed"), null) != null
+
+    fun recordAudioSourceUsed(isThirdParty: Boolean, source: String) {
+        setStringValue(audioProfileKey(isThirdParty, "last_used"), source)
+    }
+
+    /** Only a user-confirmed source is promoted to the saved profile. */
+    fun confirmAudioSourceForCall(isThirdParty: Boolean): String {
+        val source = prefs.getString(
+            audioProfileKey(isThirdParty, "last_used"),
+            getAudioSourceForCall(isThirdParty)
+        ) ?: getAudioSource()
+        setStringValue(audioProfileKey(isThirdParty, "confirmed"), source)
+        prefs.edit {
+            remove(audioProfileKey(isThirdParty, "pending"))
+            remove(audioProfileKey(isThirdParty, "tried"))
+        }
+        return source
+    }
+
+    /** Queue the next supported source, or return null when all supported fallbacks were tried. */
+    fun tryNextAudioSourceForCall(isThirdParty: Boolean): String? {
+        val last = prefs.getString(
+            audioProfileKey(isThirdParty, "last_used"),
+            getAudioSourceForCall(isThirdParty)
+        ) ?: getAudioSource()
+        val triedKey = audioProfileKey(isThirdParty, "tried")
+        val tried = (prefs.getStringSet(triedKey, emptySet()) ?: emptySet()).toMutableSet()
+        tried.add(last)
+        val fallbackOrder = if (isThirdParty) {
+            listOf(ScrcpyAudioSource.PLAYBACK, ScrcpyAudioSource.VOICE_COMMUNICATION,
+                ScrcpyAudioSource.VOICE_CALL, ScrcpyAudioSource.VOICE_CALL_DOWNLINK,
+                ScrcpyAudioSource.VOICE_CALL_UPLINK, ScrcpyAudioSource.OUTPUT,
+                ScrcpyAudioSource.VOICE_PERFORMANCE, ScrcpyAudioSource.MIC_UNPROCESSED,
+                ScrcpyAudioSource.MIC_CAMCORDER, ScrcpyAudioSource.MIC_VOICE_RECOGNITION,
+                ScrcpyAudioSource.MIC)
+        } else {
+            listOf(ScrcpyAudioSource.VOICE_CALL, ScrcpyAudioSource.VOICE_CALL_DOWNLINK,
+                ScrcpyAudioSource.VOICE_CALL_UPLINK, ScrcpyAudioSource.VOICE_COMMUNICATION,
+                ScrcpyAudioSource.PLAYBACK, ScrcpyAudioSource.OUTPUT,
+                ScrcpyAudioSource.VOICE_PERFORMANCE, ScrcpyAudioSource.MIC_UNPROCESSED,
+                ScrcpyAudioSource.MIC_CAMCORDER, ScrcpyAudioSource.MIC_VOICE_RECOGNITION,
+                ScrcpyAudioSource.MIC)
+        }
+        val next = fallbackOrder.firstOrNull { source ->
+            source.cliKey !in tried && Build.VERSION.SDK_INT >= source.minApi &&
+                (source.maxApi == null || Build.VERSION.SDK_INT <= source.maxApi)
+        }
+        prefs.edit {
+            putStringSet(triedKey, tried)
+            remove(audioProfileKey(isThirdParty, "confirmed"))
+            if (next != null) putString(audioProfileKey(isThirdParty, "pending"), next.cliKey)
+            else remove(audioProfileKey(isThirdParty, "pending"))
+        }
+        return next?.cliKey
+    }
+
+    /** Reset only this call type's learning data; recordings and the other profile are untouched. */
+    fun resetAudioSourceProfile(isThirdParty: Boolean) {
+        prefs.edit {
+            remove(audioProfileKey(isThirdParty, "confirmed"))
+            remove(audioProfileKey(isThirdParty, "pending"))
+            remove(audioProfileKey(isThirdParty, "tried"))
+            remove(audioProfileKey(isThirdParty, "last_used"))
+        }
+    }
+
+    private fun setStringValue(key: String, value: String?) {
+        prefs.edit { putString(key, value) }
+    }
+
     /** Gets the configured audio codec for scrcpy integration. */
     fun getAudioCodec() = getString(Key.AUDIO_CODEC, DefaultsValue.AUDIO_CODEC) ?: DefaultsValue.AUDIO_CODEC
     

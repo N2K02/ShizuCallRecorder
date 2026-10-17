@@ -76,14 +76,10 @@ import com.kitsumed.shizucallrecorder.system.openGithubReportIssue
 import com.kitsumed.shizucallrecorder.system.openGithubWiki
 import com.kitsumed.shizucallrecorder.system.storage.SafHelper
 import com.kitsumed.shizucallrecorder.system.takePersistableFolderPermission
-import com.kitsumed.shizucallrecorder.ui.common.ContactSelectionDialog
 import com.kitsumed.shizucallrecorder.ui.common.M3DropdownField
 import com.kitsumed.shizucallrecorder.ui.common.OptionItem
 import com.kitsumed.shizucallrecorder.ui.common.ToggleListItem
 import com.kitsumed.shizucallrecorder.ui.theme.ShizuCallRecorderTheme
-import com.kitsumed.shizucallrecorder.ui.viewmodels.ContactPickerState
-import com.kitsumed.shizucallrecorder.ui.viewmodels.ContactPickerType
-import com.kitsumed.shizucallrecorder.ui.viewmodels.ContactPickerViewModel
 import com.kitsumed.shizucallrecorder.ui.viewmodels.DebugAction
 import com.kitsumed.shizucallrecorder.ui.viewmodels.SettingsActions
 import com.kitsumed.shizucallrecorder.ui.viewmodels.SettingsViewModel
@@ -111,10 +107,6 @@ fun SettingsScreen(
     // Trigger recomposition when settings change by viewmodel.refresh()
     val updateTrigger by viewModel.updateTrigger.collectAsState()
 
-    // ContactPickerViewModel owns the contact-loading logic and dialog state.
-    val contactPickerViewModel: ContactPickerViewModel = viewModel()
-    val contactPickerState by contactPickerViewModel.contactPickerState.collectAsState()
-
     // Folder picker — PersistentFolderPickerContract keeps access alive after a reboot.
     val folderPickerLauncher = rememberLauncherForActivityResult(PersistentFolderPickerContract()) { uri ->
         if (uri != null) {
@@ -138,14 +130,6 @@ fun SettingsScreen(
         actions = viewModel,
         contactPickerState = contactPickerState,
         onSelectFolder = { folderPickerLauncher.launch(null) },
-        onOpenContactsIncoming = { contactPickerViewModel.openContactPicker(ContactPickerType.INCOMING) },
-        onOpenContactsOutgoing = { contactPickerViewModel.openContactPicker(ContactPickerType.OUTGOING) },
-        onConfirmContacts = { lookupIDs ->
-            contactPickerViewModel.confirmContactPicker(lookupIDs)
-            // Refresh the screen so the new contact list information is shown immediately after confirming and closing the dialog.
-            viewModel.refresh()
-        },
-        onDismissContacts = { contactPickerViewModel.dismissContactPicker() },
         onExportLogs = { exportLogLauncher.launch("shizucallrecorder_bug_report.log") },
         onOpenRecordings = { context.startActivity(Intent(context, RecordingsActivity::class.java)) },
         modifier = modifier.fillMaxSize()
@@ -178,12 +162,7 @@ fun SettingsContent(
     preferences: AppPreferences,
     updateTrigger: Int,
     actions: SettingsActions,
-    contactPickerState: ContactPickerState?,
     onSelectFolder: () -> Unit,
-    onOpenContactsIncoming: () -> Unit,
-    onOpenContactsOutgoing: () -> Unit,
-    onConfirmContacts: (Set<String>) -> Unit,
-    onDismissContacts: () -> Unit,
     onExportLogs: () -> Unit,
     onOpenRecordings: () -> Unit,
     modifier: Modifier = Modifier
@@ -237,31 +216,15 @@ fun SettingsContent(
                     updateTrigger = updateTrigger,
                     actions = actions,
                     onSelectFolder = onSelectFolder,
-                    onOpenContactsIncoming = onOpenContactsIncoming,
-                    onOpenContactsOutgoing = onOpenContactsOutgoing
                 )
             }
             item { AudioSection(preferences, updateTrigger, actions) }
-            item { SecuritySection(preferences, updateTrigger, actions) }
             item { VisualSection(preferences, updateTrigger, actions) }
             item { DebugSection(preferences, updateTrigger, actions, onExportLogs) }
             item {  } // extra padding at bottom
         }
     }
 
-    // The contact-picker dialog sits on top of the settings content.
-    contactPickerState?.let { picker ->
-        ContactSelectionDialog(
-            title = when (picker.type) {
-                ContactPickerType.INCOMING -> stringResource(R.string.settings_select_contacts_incoming)
-                ContactPickerType.OUTGOING -> stringResource(R.string.settings_select_contacts_outgoing)
-            },
-            contacts = picker.contacts,
-            initialSelection = picker.selectedContactsLookupId,
-            onConfirm = onConfirmContacts,
-            onDismiss = onDismissContacts
-        )
-    }
 }
 
 // ── Settings sections ──────────────────────────────────────────────────────────────────────
@@ -475,100 +438,6 @@ private fun VisualSection(preferences: AppPreferences, updateTrigger: Int, actio
     }
 }
 
-/** Shows the security settings.
- *
- * @param preferences   The [AppPreferences] instance to read data from.
- * @param updateTrigger Trigger value to force recomposition when settings change.
- * @param actions       Implementation of [SettingsActions] to handle user interaction.
- */
-@Composable
-private fun SecuritySection(preferences: AppPreferences, updateTrigger: Int, actions: SettingsActions) {
-    val autoManageShizuku = remember(updateTrigger) { preferences.isShizukuAutoManageEnabled() }
-    val shizukuStartOnRecord = remember(updateTrigger) { preferences.isShizukuStartOnRecordEnabled() }
-    val shizukuKeepAlive = remember(updateTrigger) { preferences.isShizukuKeepAliveEnabled() }
-    val shizukuAuthKey = remember(updateTrigger) { preferences.getShizukuAuthKey() }
-
-    SettingsSection(title = stringResource(R.string.settings_section_security)) {
-        ToggleListItem(
-            label           = stringResource(R.string.settings_shizuku_auto_manage),
-            checked         = autoManageShizuku,
-            onCheckedChange = { actions.setShizukuAutoManageEnabled(it) },
-            description     = stringResource(R.string.settings_shizuku_auto_manage_desc)
-        )
-
-        AnimatedVisibility(
-            visible = autoManageShizuku,
-            enter = fadeIn(animationSpec = tween(durationMillis = 500)) +
-                    expandVertically(
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow
-                        ),
-                        expandFrom = Alignment.Top
-                    ),
-            exit = fadeOut(animationSpec = tween(durationMillis = 450)) +
-                    shrinkVertically(
-                        animationSpec = tween(durationMillis = 450, easing = LinearOutSlowInEasing),
-                        shrinkTowards = Alignment.Top
-                    )
-        ) {
-            Column {
-                var textState by remember(shizukuAuthKey) { mutableStateOf(shizukuAuthKey) }
-                var isFocused by remember { mutableStateOf(false) }
-
-                // Listen for textState updates
-                LaunchedEffect(textState) {
-                    // LaunchedEffect cancels the previous block and restarts when updating too quickly.
-                    delay(100)
-                    if (textState != shizukuAuthKey) {
-                        actions.setShizukuAuthKey(textState)
-                    }
-                }
-
-                OutlinedTextField(
-                    value    = textState,
-                    onValueChange = { textState = it },
-                    label    = { Text(stringResource(R.string.settings_shizuku_auth_key)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
-                        .onFocusChanged { isFocused = it.isFocused },
-                    singleLine = true,
-                    isError = textState.isBlank(),
-                    visualTransformation = if (isFocused) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done, keyboardType = KeyboardType.Password, showKeyboardOnFocus = true),
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Key,
-                            contentDescription = null
-                        )
-                    }
-                )
-
-                if (textState.trim().isEmpty()) {
-                    WarningCard(
-                        modifier = Modifier.padding(horizontal = 12.dp),
-                        message = stringResource(R.string.recording_shizuku_auth_key_missing))
-                }
-
-                ToggleListItem(
-                    label           = stringResource(R.string.settings_shizuku_start_on_record),
-                    checked         = shizukuStartOnRecord,
-                    onCheckedChange = { actions.setShizukuStartOnRecordEnabled(it) },
-                    description     = stringResource(R.string.settings_shizuku_start_on_record_desc)
-                )
-
-                ToggleListItem(
-                    label           = stringResource(R.string.settings_shizuku_keep_alive),
-                    checked         = shizukuKeepAlive,
-                    onCheckedChange = { actions.setShizukuKeepAliveEnabled(it) },
-                    description     = stringResource(R.string.settings_shizuku_keep_alive_desc)
-                )
-            }
-        }
-    }
-}
-
 /** Shows the recording folder, auto-record toggles, and contact-filter options.
  *
  * @param preferences              The [AppPreferences] instance to read data from.
@@ -587,8 +456,6 @@ private fun RecordingSection(
     updateTrigger: Int,
     actions: SettingsActions,
     onSelectFolder: () -> Unit,
-    onOpenContactsIncoming: () -> Unit,
-    onOpenContactsOutgoing: () -> Unit
 ) {
     val context = LocalContext.current
     
@@ -600,13 +467,6 @@ private fun RecordingSection(
     val isVibrationEnabled = remember(updateTrigger) { preferences.isVibrationEnabled() }
     val autoRecordIncoming = remember(updateTrigger) { preferences.isAutoRecordIncomingEnabled() }
     val autoRecordOutgoing = remember(updateTrigger) { preferences.isAutoRecordOutgoingEnabled() }
-    val ignoreAnonymousIncoming = remember(updateTrigger) { preferences.isIgnoreAnonymousIncomingEnabled() }
-    val ignoreCrossCountryIncoming = remember(updateTrigger) { preferences.isIgnoreCrossCountryIncomingEnabled() }
-    val ignoreContactsModeIncoming = remember(updateTrigger) { preferences.getIgnoreContactsModeIncoming() }
-    val ignoreContactsModeOutgoing = remember(updateTrigger) { preferences.getIgnoreContactsModeOutgoing() }
-    val ignoreCrossCountryOutgoing = remember(updateTrigger) { preferences.isIgnoreCrossCountryOutgoingEnabled() }
-    val ignoredContactsIncomingCount = remember(updateTrigger) { preferences.getIgnoredContactsIncoming().size }
-    val ignoredContactsOutgoingCount = remember(updateTrigger) { preferences.getIgnoredContactsOutgoing().size }
 
 
     SettingsSection(title = stringResource(R.string.settings_section_recording)) {
@@ -704,82 +564,13 @@ private fun RecordingSection(
             checked         = autoRecordIncoming,
             onCheckedChange = { actions.setAutoRecordIncoming(it) }
         )
-        AnimatedVisibility(
-            visible = autoRecordIncoming,
-            enter = fadeIn(animationSpec = tween(durationMillis = 500)) +
-                    expandVertically(
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow
-                        ),
-                        expandFrom = Alignment.Top
-                    ),
-            exit = fadeOut(animationSpec = tween(durationMillis = 450)) +
-                    shrinkVertically(
-                        animationSpec = tween(durationMillis = 450, easing = LinearOutSlowInEasing),
-                        shrinkTowards = Alignment.Top
-                    )
-        ) {
-            Column {
-                ToggleListItem(
-                    label           = stringResource(R.string.settings_ignore_anonymous_incoming),
-                    checked         = ignoreAnonymousIncoming,
-                    onCheckedChange = { actions.setIgnoreAnonymousIncoming(it) }
-                )
-                ToggleListItem(
-                    label           = stringResource(R.string.settings_ignore_cross_country_incoming),
-                    checked         = ignoreCrossCountryIncoming,
-                    onCheckedChange = { actions.setIgnoreCrossCountryIncoming(it) },
-                    enabled         = ignoreAnonymousIncoming
-                )
-                IgnoreContactsOptions(
-                    label           = stringResource(R.string.settings_ignore_contacts_incoming),
-                    selectedEnum     = ignoreContactsModeIncoming,
-                    selectedCount    = ignoredContactsIncomingCount,
-                    onSelected      = { actions.setIgnoreContactsModeIncoming(it) },
-                    onSelectContacts = onOpenContactsIncoming
-                )
-            }
-        }
-
-        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), thickness = 0.5.dp)
 
         ToggleListItem(
-            label           = stringResource(R.string.settings_auto_record_outgoing),
-            checked         = autoRecordOutgoing,
+            label = stringResource(R.string.settings_auto_record_outgoing),
+            checked = autoRecordOutgoing,
             onCheckedChange = { actions.setAutoRecordOutgoing(it) }
         )
-        AnimatedVisibility(
-            visible = autoRecordOutgoing,
-            enter = fadeIn(animationSpec = tween(durationMillis = 500)) +
-                    expandVertically(
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow
-                        ),
-                        expandFrom = Alignment.Top
-                    ),
-            exit = fadeOut(animationSpec = tween(durationMillis = 450)) +
-                    shrinkVertically(
-                        animationSpec = tween(durationMillis = 450, easing = LinearOutSlowInEasing),
-                        shrinkTowards = Alignment.Top
-                    )
-        ) {
-            Column {
-                ToggleListItem(
-                    label           = stringResource(R.string.settings_ignore_cross_country_outgoing),
-                    checked         = ignoreCrossCountryOutgoing,
-                    onCheckedChange = { actions.setIgnoreCrossCountryOutgoing(it) }
-                )
-                IgnoreContactsOptions(
-                    label           = stringResource(R.string.settings_ignore_contacts_outgoing),
-                    selectedEnum     = ignoreContactsModeOutgoing,
-                    selectedCount    = ignoredContactsOutgoingCount,
-                    onSelected      = { actions.setIgnoreContactsModeOutgoing(it) },
-                    onSelectContacts = onOpenContactsOutgoing
-                )
-            }
-        }
     }
 
 }
@@ -1053,89 +844,6 @@ private fun SettingsSection(title: String, content: @Composable ColumnScope.() -
 }
 
 /**
- * A radio-button group for choosing which contacts to ignore.
- * When "selected" is active, shows a text field and a "Pick Contacts" button.
- *
- * @param label           Label shown above the radio buttons.
- * @param selectedEnum     The currently active mode ("none", "all", or "selected").
- * @param selectedCount    The number of contacts currently selected
- * @param onSelected      Called with the new active mode when the user taps a radio button.
- * @param onSelectContacts Called when the user taps the "Select Contacts" button; opens the
- *                        [ContactSelectionDialog] via [ContactPickerViewModel].
- */
-@Composable
-private fun IgnoreContactsOptions(
-    label: String,
-    selectedEnum: AppPreferences.IgnoreContactsMode,
-    selectedCount: Int,
-    onSelected: (AppPreferences.IgnoreContactsMode) -> Unit,
-    onSelectContacts: () -> Unit
-) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(
-            text  = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.secondary
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        val enumEntries = AppPreferences.IgnoreContactsMode.entries
-        enumEntries.forEach { ignoreContactMode ->
-            val isCurrentlySelected = (selectedEnum == ignoreContactMode)
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    // This make the box/text next to the radio button selectable, not just the button itself, which is more user-friendly.
-                    .minimumInteractiveComponentSize()
-                    .selectable(
-                        selected = isCurrentlySelected,
-                        onClick = { onSelected(ignoreContactMode) },
-                        role = Role.RadioButton
-                    )
-                    .semantics(mergeDescendants = true) {
-                    }
-                    .padding(vertical = 4.dp)
-            ) {
-                RadioButton(selected = isCurrentlySelected, onClick = null)
-                Text(
-                    text = when (ignoreContactMode) {
-                        AppPreferences.IgnoreContactsMode.NONE -> stringResource(R.string.settings_ignore_contacts_none)
-                        AppPreferences.IgnoreContactsMode.ALL -> stringResource(R.string.settings_ignore_contacts_all)
-                        AppPreferences.IgnoreContactsMode.SELECTED   -> stringResource(R.string.settings_ignore_contacts_selected)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(start = 12.dp)
-                )
-            }
-        }
-        AnimatedVisibility(
-            visible = selectedEnum == AppPreferences.IgnoreContactsMode.SELECTED,
-            enter = fadeIn(animationSpec = tween(400)) +
-                    expandVertically(
-                        animationSpec = tween(400, easing = LinearOutSlowInEasing),
-                        expandFrom = Alignment.Top
-                    ),
-            exit = fadeOut(animationSpec = tween(300)) +
-                    shrinkVertically(
-                        animationSpec = tween(300, easing = LinearOutSlowInEasing),
-                        shrinkTowards = Alignment.Top
-                    )
-        ) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick  = onSelectContacts,
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .fillMaxWidth(),
-                shape = MaterialTheme.shapes.small
-            ) { Text(stringResource(R.string.settings_select_contacts, selectedCount)) }
-        }
-    }
-}
-
-/**
  * A red warning card used to highlight important information or potential issues in the settings.
  * @param message The main warning message to display.
  * @param modifier Modifier for styling the card.
@@ -1249,10 +957,6 @@ private fun SettingsScreenPreview() {
             override fun triggerDebugAction(action: DebugAction) {}
             override fun exportLogs(uri: Uri) {}
             override fun getAppVersion(): String = "Version 1.0.0 (Mock)"
-            override fun setShizukuAutoManageEnabled(enabled: Boolean) {}
-            override fun setShizukuStartOnRecordEnabled(enabled: Boolean) {}
-            override fun setShizukuKeepAliveEnabled(enabled: Boolean) {}
-            override fun setShizukuAuthKey(key: String) {}
             override fun setCallDetectionMode(mode: CallDetectionMode) {}
             override fun setRecordThirdPartyCalls(enabled: Boolean) {}
             override fun setPostRecordingFileNotification(enabled: Boolean) {}
@@ -1266,8 +970,6 @@ private fun SettingsScreenPreview() {
             actions = dummyActions,
             contactPickerState = null,
             onSelectFolder = {},
-            onOpenContactsIncoming = {},
-            onOpenContactsOutgoing = {},
             onConfirmContacts = {},
             onDismissContacts = {},
             onExportLogs = {},

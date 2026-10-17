@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -210,7 +211,6 @@ fun SettingsContent(
                 )
             }
             item { UpdateCard() }
-            item { AboutSection() }
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenRecordings),
@@ -266,53 +266,72 @@ fun SettingsContent(
 
 // ── Settings sections ──────────────────────────────────────────────────────────────────────
 
-/** Shows the app version, server version, clipboard buttons, and a GitHub link.
- */
+/** Icon-only footer action for About, licenses, the project wiki, and sponsorship. */
 @Composable
 private fun AboutSection() {
     val context = LocalContext.current
+    var showAboutDialog by remember { mutableStateOf(false) }
+    var showLicensesDialog by remember { mutableStateOf(false) }
+    var showSponsorScreen by remember { mutableStateOf(false) }
 
-    var showLicensesDialog by remember() { mutableStateOf(false) }
-    var showSponsorScreen by remember() { mutableStateOf(false) }
+    IconButton(onClick = { showAboutDialog = true }) {
+        Icon(
+            imageVector = Icons.Default.Info,
+            contentDescription = stringResource(R.string.settings_section_about),
+        )
+    }
 
-    SettingsSection(title = stringResource(R.string.settings_section_about)) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(
-                onClick = { context.openGithubWiki() },
-                modifier = Modifier.weight(1f)
-            ) { Text(stringResource(R.string.settings_open_github_Wiki)) }
-            OutlinedButton(
-                onClick = { showLicensesDialog = true },
-                modifier = Modifier.weight(1f)
-            ) { Text(stringResource(R.string.settings_view_licenses)) }
-        }
-        Button(
-            onClick = { showSponsorScreen = true },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp)
-        ) { Text(stringResource(R.string.sponsor_title)) }
+    if (showAboutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAboutDialog = false },
+            title = { Text(stringResource(R.string.settings_section_about)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            showAboutDialog = false
+                            context.openGithubWiki()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(stringResource(R.string.settings_open_github_Wiki)) }
+                    OutlinedButton(
+                        onClick = {
+                            showAboutDialog = false
+                            showLicensesDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(stringResource(R.string.settings_view_licenses)) }
+                    Button(
+                        onClick = {
+                            showAboutDialog = false
+                            showSponsorScreen = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(stringResource(R.string.sponsor_title)) }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAboutDialog = false }) {
+                    Text(stringResource(R.string.general_close))
+                }
+            }
+        )
     }
 
     if (showSponsorScreen) {
         Dialog(
             onDismissRequest = { showSponsorScreen = false },
             properties = DialogProperties(
-                usePlatformDefaultWidth = false, // False for edge-to-edge, since our SponsorScreen take full screen
+                usePlatformDefaultWidth = false,
                 decorFitsSystemWindows = false,
                 dismissOnClickOutside = false,
                 dismissOnBackPress = true,
-
             )
         ) {
             SponsorScreen(onDismiss = { showSponsorScreen = false })
         }
     }
 
-    // Handle license dialog
     if (showLicensesDialog) {
         Dialog(
             onDismissRequest = { showLicensesDialog = false },
@@ -331,17 +350,19 @@ private fun AboutSection() {
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.padding(16.dp)
                     )
-
                     val libraries by produceLibraries(R.raw.aboutlibraries)
-                    LibrariesContainer(libraries,Modifier
-                        .fillMaxSize()
-                        .weight(1f),
-                        showAuthor = true, showLicenseBadges = true, showFundingBadges = false, showVersion = true, showDescription = true)
+                    LibrariesContainer(
+                        libraries,
+                        Modifier.fillMaxSize().weight(1f),
+                        showAuthor = true,
+                        showLicenseBadges = true,
+                        showFundingBadges = false,
+                        showVersion = true,
+                        showDescription = true
+                    )
                     TextButton(
                         onClick = { showLicensesDialog = false },
-                        modifier = Modifier
-                            .align(Alignment.End)
-                            .padding(8.dp)
+                        modifier = Modifier.align(Alignment.End).padding(8.dp)
                     ) {
                         Text(stringResource(R.string.general_close))
                     }

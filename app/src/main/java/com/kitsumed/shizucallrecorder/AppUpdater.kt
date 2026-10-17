@@ -29,8 +29,8 @@ import java.security.MessageDigest
  * In-app updates from this app's GitHub Releases (the same APK the release page offers).
  *
  * 1. Check: asks GitHub for the latest release (on opening the app, at most every 12 hours,
- *    or when "Check for updates" is tapped). The release tag "v1.8" is turned into the same
- *    versionCode the build uses (1.8 -> 18) and compared with the installed one.
+ *    or when "Check for updates" is tapped). Semantic release versions are compared with the
+ *    installed version name; the downloaded APK's actual versionCode is checked before install.
  * 2. Download: the APK goes to the app's private cache, with progress.
  * 3. Verify before installing: size and SHA-256 (from GitHub), same package name,
  *    newer versionCode and a signing key the installed app trusts.

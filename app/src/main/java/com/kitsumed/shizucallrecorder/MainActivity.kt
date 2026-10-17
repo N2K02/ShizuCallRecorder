@@ -23,9 +23,15 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppUpdater.init(this, "N2K02/ShizuCallRecorder", "ShizuCallRecorder")
         enableEdgeToEdge()
         setContent {
             AppNavigationScreen()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        AppUpdater.onResume(this)
     }
 }

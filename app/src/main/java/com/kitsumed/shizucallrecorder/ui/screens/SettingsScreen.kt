@@ -128,7 +128,6 @@ fun SettingsScreen(
         preferences = viewModel.preferences,
         updateTrigger = updateTrigger,
         actions = viewModel,
-        contactPickerState = contactPickerState,
         onSelectFolder = { folderPickerLauncher.launch(null) },
         onExportLogs = { exportLogLauncher.launch("shizucallrecorder_bug_report.log") },
         onOpenRecordings = { context.startActivity(Intent(context, RecordingsActivity::class.java)) },
@@ -148,12 +147,7 @@ fun SettingsScreen(
  * @param preferences            The [AppPreferences] instance to read data from.
  * @param updateTrigger          Trigger value to force/detect recomposition when settings change.
  * @param actions                Implementation of [SettingsActions] to handle user interaction.
- * @param contactPickerState     Current state of the contact picker dialog.
  * @param onSelectFolder         Called when the user taps the recording-folder row.
- * @param onOpenContactsIncoming Called to open picker for incoming contacts.
- * @param onOpenContactsOutgoing Called to open picker for outgoing contacts.
- * @param onConfirmContacts      Called when contacts are confirmed from the dialog.
- * @param onDismissContacts      Called when we want to close the dialog without confirmation/saving.
  * @param onExportLogs           Called to export diagnostic logs using SAF.
  * @param modifier               Optional size/position modifier.
  */
@@ -939,11 +933,6 @@ private fun SettingsScreenPreview() {
             override fun setAutoRecordIncoming(enabled: Boolean) {}
             override fun setAutoRecordOutgoing(enabled: Boolean) {}
             override fun setVibrationEnabled(enabled: Boolean) {}
-            override fun setIgnoreAnonymousIncoming(enabled: Boolean) {}
-            override fun setIgnoreCrossCountryIncoming(enabled: Boolean) {}
-            override fun setIgnoreCrossCountryOutgoing(enabled: Boolean) {}
-            override fun setIgnoreContactsModeIncoming(modeEnum: AppPreferences.IgnoreContactsMode) {}
-            override fun setIgnoreContactsModeOutgoing(modeEnum: AppPreferences.IgnoreContactsMode) {}
             override fun setAudioSource(source: String) {}
             override fun setAudioCodec(codec: String) {}
             override fun setAudioBitRate(bitRate: Int) {}
@@ -968,10 +957,7 @@ private fun SettingsScreenPreview() {
             preferences = dummyPreferences,
             updateTrigger = 0,
             actions = dummyActions,
-            contactPickerState = null,
             onSelectFolder = {},
-            onConfirmContacts = {},
-            onDismissContacts = {},
             onExportLogs = {},
             onOpenRecordings = {}
         )

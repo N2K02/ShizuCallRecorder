@@ -288,7 +288,7 @@ fun UpdateFooterBar(
                         onClick = onOpenUpdates, contentPadding = small, modifier = buttonModifier,
                     ) { Text("Up to date ✓", style = MaterialTheme.typography.labelMedium) }
                     else -> FilledTonalButton(
-                        onClick = { AppUpdater.check(manual = true) }, contentPadding = small, modifier = buttonModifier,
+                        onClick = onOpenUpdates, contentPadding = small, modifier = buttonModifier,
                     ) { Text("Check for updates", style = MaterialTheme.typography.labelMedium) }
                 }
             }

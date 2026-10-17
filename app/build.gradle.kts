@@ -133,8 +133,8 @@ android {
         minSdk = 30
         targetSdk = 36
         // Keep theses two values hard-coded here and update them per version. (To keep F-Droid compatibility since their parser is very basic)
-        versionCode = 28
-        versionName = "1.4.2" // Startup safety, Shizuku validation, and lock-screen privacy
+        versionCode = 29
+        versionName = "1.4.3" // Permanent recording filename format; remove filename template setting
 
         buildConfigField("String", "SCRCPY_VERSION", "\"$scrcpyVersion\"")
         buildConfigField("String", "SCRCPY_SERVER_SHA256", "\"$scrcpyServerSha256\"")

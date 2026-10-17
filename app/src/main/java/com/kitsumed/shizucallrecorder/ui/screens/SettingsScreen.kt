@@ -27,6 +27,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
@@ -58,8 +60,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsumed.shizucallrecorder.R
 import com.kitsumed.shizucallrecorder.FooterScroll
-import com.kitsumed.shizucallrecorder.UpdateCard
 import com.kitsumed.shizucallrecorder.UpdateFooterBar
+import com.kitsumed.shizucallrecorder.UpdatesScreen
 import com.kitsumed.shizucallrecorder.ui.screens.RecordingsActivity
 import com.kitsumed.shizucallrecorder.data.AppPreferences
 import com.kitsumed.shizucallrecorder.integrations.scrcpy.ScrcpyAudioCodec
@@ -97,6 +99,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    var showUpdatesPage by rememberSaveable { mutableStateOf(false) }
     
     // Trigger recomposition when settings change by viewmodel.refresh()
     val updateTrigger by viewModel.updateTrigger.collectAsState()
@@ -118,20 +121,28 @@ fun SettingsScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-    SettingsContent(
-        preferences = viewModel.preferences,
-        updateTrigger = updateTrigger,
-        actions = viewModel,
-        onSelectFolder = { folderPickerLauncher.launch(null) },
-        onExportLogs = { exportLogLauncher.launch("shizucallrecorder_bug_report.log") },
-        onOpenRecordings = { context.startActivity(Intent(context, RecordingsActivity::class.java)) },
-        modifier = modifier.fillMaxSize()
-    )
-    UpdateFooterBar(
-        appName = "ShizuCallRecorder",
-        modifier = Modifier.align(Alignment.BottomCenter),
-        aboutAction = { AboutSection() }
-    )
+        if (showUpdatesPage) {
+            UpdatesScreen(
+                onBack = { showUpdatesPage = false },
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            )
+        } else {
+            SettingsContent(
+                preferences = viewModel.preferences,
+                updateTrigger = updateTrigger,
+                actions = viewModel,
+                onSelectFolder = { folderPickerLauncher.launch(null) },
+                onExportLogs = { exportLogLauncher.launch("shizucallrecorder_bug_report.log") },
+                onOpenRecordings = { context.startActivity(Intent(context, RecordingsActivity::class.java)) },
+                modifier = modifier.fillMaxSize()
+            )
+            UpdateFooterBar(
+                appName = "ShizuCallRecorder",
+                modifier = Modifier.align(Alignment.BottomCenter),
+                onOpenUpdates = { showUpdatesPage = true },
+                aboutAction = { AboutSection() }
+            )
+        }
     }
 }
 
@@ -177,7 +188,6 @@ fun SettingsContent(
                     fontWeight = FontWeight.Bold
                 )
             }
-            item { UpdateCard() }
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenRecordings),

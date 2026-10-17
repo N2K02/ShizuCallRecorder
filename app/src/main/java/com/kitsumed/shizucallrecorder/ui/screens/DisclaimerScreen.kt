@@ -13,10 +13,8 @@ import android.view.accessibility.AccessibilityManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -31,10 +29,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -56,10 +52,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.kitsumed.shizucallrecorder.AppUrls
-import com.kitsumed.shizucallrecorder.BuildConfig
 import com.kitsumed.shizucallrecorder.R
 import com.kitsumed.shizucallrecorder.ui.theme.ShizuCallRecorderTheme
-import kotlinx.coroutines.delay
 
 
 /**
@@ -76,7 +70,6 @@ fun DisclaimerScreen(onContinue: () -> Unit, modifier: Modifier = Modifier) {
     // [rememberSaveable] allow for the values to survive configuration
     // changes (like when recompose is triggered by a screen rotation)
     var hasAccepted by rememberSaveable { mutableStateOf(false) }
-    var timeLeft by rememberSaveable { mutableIntStateOf(if (BuildConfig.DEBUG) 4 else 30) }
 
     val scrollState = rememberScrollState()
     val hasScrolledToBottom by remember {
@@ -88,14 +81,6 @@ fun DisclaimerScreen(onContinue: () -> Unit, modifier: Modifier = Modifier) {
     val isTalkBackEnabled = remember(context) {
         val accService = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
         accService.isEnabled && accService.isTouchExplorationEnabled
-    }
-
-    // Countdown timer: decrements timeLeft once per second until it reaches 0.
-    LaunchedEffect(Unit) {
-        while (timeLeft > 0) {
-            delay(1000L)
-            timeLeft--
-        }
     }
 
     Surface(
@@ -124,20 +109,25 @@ fun DisclaimerScreen(onContinue: () -> Unit, modifier: Modifier = Modifier) {
 
             HyperlinkText(stringResource(R.string.disclaimer_introduction), links)
 
-            Text(
-                text = stringResource(
-                    when {
-                        hasScrolledToBottom -> R.string.disclaimer_scrolled_to_end
-                        isTalkBackEnabled -> R.string.disclaimer_accessibility_hint
-                        else -> R.string.disclaimer_scroll_hint
-                    }
-                ),
-                style = MaterialTheme.typography.labelLarge,
-                color = if (hasScrolledToBottom) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(1.dp))
+            // Highlight the reading/scrolling instruction so users notice it immediately.
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Text(
+                    text = stringResource(
+                        when {
+                            hasScrolledToBottom -> R.string.disclaimer_scrolled_to_end
+                            isTalkBackEnabled -> R.string.disclaimer_accessibility_hint
+                            else -> R.string.disclaimer_scroll_hint
+                        }
+                    ),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
 
             // Elevated card gives visual depth to the scrollable disclaimer body.
             ElevatedCard(
@@ -187,23 +177,19 @@ fun DisclaimerScreen(onContinue: () -> Unit, modifier: Modifier = Modifier) {
                 )
             }
 
-            // Continue button, enabled only when all three gates are satisfied.
-            val canContinue = hasAccepted && (hasScrolledToBottom || isTalkBackEnabled) && timeLeft == 0
+            // Continue becomes available immediately after the user accepts at the end.
+            val canContinue = hasAccepted && (hasScrolledToBottom || isTalkBackEnabled)
 
             Button(
                 onClick = onContinue,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = canContinue,
             ) {
-                if (timeLeft > 0) {
-                    Text(text = stringResource(R.string.disclaimer_wait, timeLeft))
-                }
-                else if (!canContinue) {
-                    Text(text = stringResource(R.string.disclaimer_must_read))
-                }
-                else {
-                    Text(text = stringResource(R.string.general_continue))
-                }
+                Text(
+                    text = stringResource(
+                        if (canContinue) R.string.general_continue else R.string.disclaimer_must_read
+                    )
+                )
             }
         }
     }

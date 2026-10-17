@@ -28,6 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -112,6 +114,7 @@ private fun RecordingsScreen(onBack: () -> Unit) {
     var isPlaybackPaused by remember { mutableStateOf(false) }
     var isPlayerPrepared by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<RecordingEntry?>(null) }
+    var confirmDeleteAll by remember { mutableStateOf(false) }
     var playingUri by remember { mutableStateOf<Uri?>(null) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
     val pageSize = 20
@@ -221,8 +224,11 @@ private fun RecordingsScreen(onBack: () -> Unit) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = { confirmDeleteAll = true }, enabled = !loading && recordings.isNotEmpty()) {
+                        Icon(Icons.Default.DeleteSweep, contentDescription = "Delete all recordings")
+                    }
                     IconButton(onClick = { loadRecordings() }, enabled = !loading) {
-                        Icon(Icons.Default.FolderOpen, contentDescription = "Refresh recordings")
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh recordings")
                     }
                 }
             )
@@ -360,6 +366,34 @@ private fun RecordingsScreen(onBack: () -> Unit) {
         }
     }
 
+    if (confirmDeleteAll) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteAll = false },
+            title = { Text("Delete all recordings?") },
+            text = { Text("This will permanently delete all recordings in your selected recording folder. This cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDeleteAll = false
+                    scope.launch {
+                        val snapshot = recordings
+                        val results = withContext(Dispatchers.IO) {
+                            snapshot.map { item ->
+                                item.uri to runCatching { DocumentFile.fromSingleUri(context, item.uri)?.delete() ?: false }.getOrDefault(false)
+                            }
+                        }
+                        val deletedUris = results.filter { it.second }.map { it.first }.toSet()
+                        if (playingUri in deletedUris) stopPlayer()
+                        recordings = recordings.filterNot { it.uri in deletedUris }
+                        val failed = results.size - deletedUris.size
+                        if (failed > 0) actionError = "Some recordings could not be deleted. Check folder permissions."
+                        else actionError = "All recordings deleted."
+                    }
+                }) { Text("Delete all") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDeleteAll = false }) { Text("Cancel") } }
+        )
+    }
+
     pendingDelete?.let { item ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
@@ -409,18 +443,35 @@ private fun RecordingCard(
                 Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = if (isPlaying) "Pause recording" else "Play recording")
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(item.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(
-                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, Locale.getDefault()).format(Date(item.modified)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                val details = remember(item.name) { parseRecordingName(item.name) }
+                Text(details.date, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(details.caller, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(details.number, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (details.direction.isNotBlank()) Text(details.direction, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(formatSize(item.size), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = onShare) { Icon(Icons.Default.Share, contentDescription = "Share recording") }
             IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, contentDescription = "Delete recording") }
         }
     }
+}
+
+private data class RecordingNameDetails(val date: String, val caller: String, val number: String, val direction: String)
+
+private fun parseRecordingName(fileName: String): RecordingNameDetails {
+    val base = fileName.substringBeforeLast('.', fileName)
+    val dateMatch = Regex("^(\\d{4})-(\\d{2})-(\\d{2})_(\\d{2})-(\\d{2})-(\\d{2})_(.*)$").find(base)
+    if (dateMatch != null) {
+        val (year, month, day, hour, minute, second, remainder) = dateMatch.destructured
+        val directionMatch = Regex("_(Incoming|Outgoing)_", RegexOption.IGNORE_CASE).find(remainder)
+        if (directionMatch != null) {
+            val caller = remainder.substring(0, directionMatch.range.first).replace('_', ' ').ifBlank { "Unknown caller" }
+            val direction = directionMatch.groupValues[1].replaceFirstChar { it.uppercase() }
+            val number = remainder.substring(directionMatch.range.last + 1).ifBlank { "Unknown number" }
+            return RecordingNameDetails("$day/$month/$year  $hour:$minute", caller, number, direction)
+        }
+    }
+    return RecordingNameDetails("Legacy recording", "Legacy recording", base, "")
 }
 
 private fun formatSize(bytes: Long): String = when {

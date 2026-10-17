@@ -21,6 +21,7 @@
     <string name="general_licenses">Licenses</string>
     <string name="general_record">Record</string>
     <string name="general_pause">Pause</string>
+    <string name="general_stop">Stop recording</string>
     <string name="general_resume">Resume</string>
     <string name="general_incoming">incoming</string>
     <string name="general_outgoing">outgoing</string>

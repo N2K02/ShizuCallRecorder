@@ -71,9 +71,6 @@ class AppPreferences(context: Context) {
 
         val AUDIO_BITRATE = ScrcpyAudioCodec.OPUS.defaultBitRate
 
-        // --- File Naming ---
-        const val FILE_NAME_TEMPLATE = "{date}_{direction}_{phone_number}"
-
         // --- UI & Appearance ---
         val THEME_MODE = ThemeMode.SYSTEM
         const val DYNAMIC_COLOR = true
@@ -116,7 +113,6 @@ class AppPreferences(context: Context) {
         AUDIO_SOURCE("audio_source"),
         AUDIO_CODEC("audio_codec"),
         AUDIO_BITRATE("audio_bitrate"),
-        FILE_NAME_TEMPLATE("file_name_template"),
         THEME_MODE("theme_mode"),
         DYNAMIC_COLOR("dynamic_color"),
         SHOW_TOASTS("show_toasts"),
@@ -380,14 +376,6 @@ class AppPreferences(context: Context) {
 
     /** Sets the configured audio bitrate. */
     fun setAudioBitRate(bitRate: Int) = setInt(Key.AUDIO_BITRATE, bitRate)
-
-    // -------- File Naming --------
-
-    /** Gets the user configured file name template. */
-    fun getFileNameTemplate() = getString(Key.FILE_NAME_TEMPLATE, DefaultsValue.FILE_NAME_TEMPLATE) ?: DefaultsValue.FILE_NAME_TEMPLATE
-
-    /** Sets the user configured file name template. */
-    fun setFileNameTemplate(template: String) = setString(Key.FILE_NAME_TEMPLATE, template)
 
     // -------- UI & Appearance --------
 

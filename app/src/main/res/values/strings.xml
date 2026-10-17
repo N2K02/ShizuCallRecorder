@@ -85,6 +85,7 @@
         2. Monitor the app behavior on your specific device. If you observe any behavior that does not comply with your local laws, you must immediately cease any activity that constitutes a legal infraction (For example, hanging up the call, deleting the audio files, etc).
     </string>
     <string name="disclaimer_scroll_hint">Scroll down inside the agreement to the very end. The acceptance checkbox unlocks when you reach the bottom.</string>
+    <string name="disclaimer_accessibility_hint">Accessibility mode is enabled, so you can accept without scrolling through the agreement.</string>
     <string name="disclaimer_scrolled_to_end">You reached the end of the agreement. You can now accept it below.</string>
     <string name="disclaimer_checkbox_label">I have read the disclaimer and understand the legal requirements, responsibilities, and technical limitations of this software.</string>
     <string name="disclaimer_wait">Wait %1$ds</string>

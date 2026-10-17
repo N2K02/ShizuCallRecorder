@@ -438,9 +438,9 @@ fun PermissionsContent(
             HorizontalDivider(modifier = Modifier.padding(bottom = 16.dp))
 
             Button(
-                onClick = onGrantAccessButtonClick,
+                onClick = onContinue,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isProcessingGrantingRequest,
+                enabled = status.isComplete() && !isProcessingGrantingRequest,
                 shape = MaterialTheme.shapes.medium
             ) {
                 if (isProcessingGrantingRequest) {
@@ -450,13 +450,7 @@ fun PermissionsContent(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text(
-                        text = when {
-                            status.isComplete()       -> stringResource(R.string.general_continue)
-                            !status.shizukuRunning    -> stringResource(R.string.permission_shizuku_open)
-                            else                      -> stringResource(R.string.permissions_grant_access)
-                        }
-                    )
+                    Text(text = stringResource(R.string.permission_next_action))
                 }
             }
         }
@@ -469,7 +463,9 @@ private fun PermissionCard(
     description: String,
     granted: Boolean,
     statusOverride: String? = null,
-    iconOverride: ImageVector? = null
+    iconOverride: ImageVector? = null,
+    onAllowClick: (() -> Unit)? = null,
+    allowEnabled: Boolean = false
 ) {
     // Animate the background container color smoothly
     val containerColor by animateColorAsState(
@@ -526,6 +522,13 @@ private fun PermissionCard(
                 }
             },
             supportingContent = { Text(description, style = MaterialTheme.typography.bodySmall) },
+            trailingContent = {
+                if (!granted && onAllowClick != null) {
+                    TextButton(onClick = onAllowClick, enabled = allowEnabled) {
+                        Text(stringResource(R.string.permission_allow_action))
+                    }
+                }
+            }
         )
     }
 }

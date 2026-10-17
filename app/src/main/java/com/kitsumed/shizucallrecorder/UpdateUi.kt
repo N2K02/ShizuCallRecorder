@@ -259,7 +259,7 @@ fun UpdateFooterBar(
                         Text("  Checking…", style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
                     }
                     is AppUpdater.State.Available -> Button(
-                        onClick = onOpenUpdates, contentPadding = small, modifier = buttonModifier,
+                        onClick = { AppUpdater.update(s.release) }, contentPadding = small, modifier = buttonModifier,
                     ) { Text("Update to ${s.release.versionName}", style = MaterialTheme.typography.labelMedium) }
                     is AppUpdater.State.Downloading -> Text(
                         s.progress?.let { "Downloading ${(it * 100).toInt()}%" } ?: "Downloading…",
@@ -275,10 +275,10 @@ fun UpdateFooterBar(
                         contentPadding = small, modifier = buttonModifier,
                     ) { Text("Allow installs", style = MaterialTheme.typography.labelMedium) }
                     is AppUpdater.State.UpToDate -> FilledTonalButton(
-                        onClick = onOpenUpdates, contentPadding = small, modifier = buttonModifier,
+                        onClick = { AppUpdater.check(manual = true) }, contentPadding = small, modifier = buttonModifier,
                     ) { Text("Up to date ✓", style = MaterialTheme.typography.labelMedium) }
                     else -> FilledTonalButton(
-                        onClick = onOpenUpdates, contentPadding = small, modifier = buttonModifier,
+                        onClick = { AppUpdater.check(manual = true) }, contentPadding = small, modifier = buttonModifier,
                     ) { Text("Check for updates", style = MaterialTheme.typography.labelMedium) }
                 }
             }

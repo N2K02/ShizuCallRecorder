@@ -102,6 +102,11 @@ class RecordingOverlayController(private val context: Context) {
                         isRecordingActive = state.isRecordingActive,
                         isRecordingPaused = state.isRecordingPaused,
                         onActionClick = { sendServiceAction(state) },
+                        onStopClick = {
+                            context.startService(Intent(context, RecordingForegroundService::class.java).apply {
+                                action = RecordingForegroundService.ACTION_STOP_RECORDING
+                            })
+                        },
                         onDragY = { deltaY -> updateOverlayY(deltaY) },
                         onDragEnd = { saveOverlayY() }
                     )

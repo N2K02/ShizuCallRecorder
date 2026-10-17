@@ -13,6 +13,8 @@
     <string name="app_name" translatable="false">ShizuCallRecorder</string>
     <string name="general_close">Close</string>
     <string name="general_continue">Continue</string>
+    <string name="permission_allow_action">Allow</string>
+    <string name="permission_next_action">Next</string>
     <string name="general_ok">OK</string>
     <string name="general_cancel">Cancel</string>
     <string name="general_settings">Settings</string>
@@ -82,6 +84,9 @@
         1. Ensure the recording behavior and your application settings aligns with your intent and the specific requirements in your jurisdiction.\n\n
         2. Monitor the app behavior on your specific device. If you observe any behavior that does not comply with your local laws, you must immediately cease any activity that constitutes a legal infraction (For example, hanging up the call, deleting the audio files, etc).
     </string>
+    <string name="disclaimer_scroll_hint">Scroll down inside the agreement to the very end. The acceptance checkbox unlocks when you reach the bottom.</string>
+    <string name="disclaimer_accessibility_hint">Accessibility mode is enabled, so you can accept without scrolling through the agreement.</string>
+    <string name="disclaimer_scrolled_to_end">You reached the end of the agreement. You can now accept it below.</string>
     <string name="disclaimer_checkbox_label">I have read the disclaimer and understand the legal requirements, responsibilities, and technical limitations of this software.</string>
     <string name="disclaimer_wait">Wait %1$ds</string>
     <string name="disclaimer_must_read">You must read the disclaimer.</string>
@@ -113,7 +118,7 @@
 
     <!-- Permissions Screen -->
     <string name="permissions_title">Permissions Setup</string>
-    <string name="permissions_intro">We need a few permissions to start recoding. Tap "Grant Access" and approve each item.</string>
+    <string name="permissions_intro">We need a few permissions to start recording. Tap Allow beside each item as it becomes available. Next unlocks when all required permissions are granted.</string>
     <string name="permissions_grant_access">Grant Access</string>
     <string name="permissions_status_granted">Granted</string>
     <string name="permissions_status_required">Required</string>

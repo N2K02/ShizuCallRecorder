@@ -43,6 +43,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -61,6 +62,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsumed.shizucallrecorder.R
+import com.kitsumed.shizucallrecorder.FooterScroll
+import com.kitsumed.shizucallrecorder.UpdateCard
+import com.kitsumed.shizucallrecorder.UpdateFooterBar
 import com.kitsumed.shizucallrecorder.ui.screens.RecordingsActivity
 import com.kitsumed.shizucallrecorder.data.AppPreferences
 import com.kitsumed.shizucallrecorder.integrations.scrcpy.ScrcpyAudioCodec
@@ -128,6 +132,7 @@ fun SettingsScreen(
         }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     SettingsContent(
         preferences = viewModel.preferences,
         updateTrigger = updateTrigger,
@@ -144,8 +149,13 @@ fun SettingsScreen(
         onDismissContacts = { contactPickerViewModel.dismissContactPicker() },
         onExportLogs = { exportLogLauncher.launch("shizucallrecorder_bug_report.log") },
         onOpenRecordings = { context.startActivity(Intent(context, RecordingsActivity::class.java)) },
-        modifier = modifier
+        modifier = modifier.fillMaxSize()
     )
+    UpdateFooterBar(
+        appName = "ShizuCallRecorder",
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
+    }
 }
 
 /**
@@ -185,10 +195,11 @@ fun SettingsContent(
     ) {
         LazyColumn(
             modifier = Modifier
-                .fillMaxSize(),
-            // Equivalent to .safeDrawingPadding() but allow UI to extend behind the status bar when scrolling
+                .fillMaxSize()
+                .nestedScroll(FooterScroll.connection),
+            // Reserve space for the fixed version/update footer while keeping edge-to-edge scrolling.
             contentPadding = WindowInsets.safeDrawing
-                .add(WindowInsets(left = 20.dp, right = 20.dp, top = 0.dp, bottom = 0.dp))
+                .add(WindowInsets(left = 20.dp, right = 20.dp, top = 0.dp, bottom = 84.dp))
                 .asPaddingValues(),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
@@ -199,6 +210,7 @@ fun SettingsContent(
                     fontWeight = FontWeight.Bold
                 )
             }
+            item { UpdateCard() }
             item { AboutSection(versionString = actions.getAppVersion()) }
             item {
                 Card(

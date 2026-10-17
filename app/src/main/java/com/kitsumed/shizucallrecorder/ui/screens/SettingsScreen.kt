@@ -439,10 +439,6 @@ private fun VisualSection(preferences: AppPreferences, updateTrigger: Int, actio
  * @param actions                Implementation of [SettingsActions] to handle user interaction.
  * @param onSelectFolder         Called when the user taps the recording-folder row; opens the SAF picker
  *                               whose launcher lives in AppNavigation.
- * @param onOpenContactsIncoming Called when the user wants to pick incoming contacts to ignore;
- *                               opens the [ContactSelectionDialog] via [ContactPickerViewModel].
- * @param onOpenContactsOutgoing Called when the user wants to pick outgoing contacts to ignore;
- *                               opens the [ContactSelectionDialog] via [ContactPickerViewModel].
  */
 @Composable
 private fun RecordingSection(

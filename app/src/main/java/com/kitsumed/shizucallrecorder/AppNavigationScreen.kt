@@ -23,6 +23,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
@@ -74,6 +75,15 @@ fun AppNavigationScreen() {
      * refresh (recompose) so [resolveScreen] picks the correct destination.
      */
     val onboardingStatus by appNavViewModel.onboardingStatus.collectAsState()
+    var permissionsNextConfirmed by rememberSaveable { mutableStateOf(false) }
+    var hasVisitedIncompletePermissions by remember { mutableStateOf(!onboardingStatus.isComplete()) }
+
+    LaunchedEffect(onboardingStatus) {
+        if (!onboardingStatus.isComplete()) {
+            hasVisitedIncompletePermissions = true
+            permissionsNextConfirmed = false
+        }
+    }
 
     /**
      * [collectAsState] bridges the [SettingsViewModel.updateTrigger] `StateFlow` to Compose.
@@ -95,7 +105,7 @@ fun AppNavigationScreen() {
 
     // resolveScreen reads the flow-backed onboardingStatus - no direct preference reads here,
     // which is what caused the stale-state bug that existed before this architecture.
-    val screenState = resolveScreen(onboardingStatus)
+    val screenState = resolveScreen(onboardingStatus, permissionsNextConfirmed, hasVisitedIncompletePermissions)
 
     // Trigger when the app resume activity, we want to refresh the navigation screens since
     // the user may have changed something in the system settings (e.g. granted a permission) that affects the onboarding status.
@@ -137,8 +147,12 @@ fun AppNavigationScreen() {
                 )
 
                 AppScreen.Permissions -> PermissionsScreen(
-                    status              = onboardingStatus,
-                    onPermissionGranted = { appNavViewModel.refresh() }
+                    status = onboardingStatus,
+                    onPermissionGranted = { appNavViewModel.refresh() },
+                    onContinue = {
+                        permissionsNextConfirmed = true
+                        appNavViewModel.refresh()
+                    }
                 )
 
                 AppScreen.Settings -> {
@@ -198,10 +212,14 @@ private enum class AppScreen {
  * @param status The latest snapshot emitted by [AppNavigationViewModel.onboardingStatus].
  * @return The [AppScreen] that matches the user's current setup progress.
  */
-private fun resolveScreen(status: OnboardingStatus.Status): AppScreen {
+private fun resolveScreen(
+    status: OnboardingStatus.Status,
+    permissionsNextConfirmed: Boolean,
+    hasVisitedIncompletePermissions: Boolean
+): AppScreen {
     return when {
         !status.disclaimerAccepted -> AppScreen.Disclaimer
-        !status.isComplete()       -> AppScreen.Permissions
+        !status.isComplete() || (hasVisitedIncompletePermissions && !permissionsNextConfirmed) -> AppScreen.Permissions
         else                       -> AppScreen.Settings
     }
 }

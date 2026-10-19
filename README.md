@@ -102,3 +102,14 @@ In some cases, certain features, like automatic call recording, may not be legal
 > Because deterministic behavior of the application cannot be guaranteed, it is your responsibility to:
 > 1. Ensure the recording behavior and your application settings aligns with your intent and the specific requirements in your jurisdiction.
 > 2. **Monitor the app's behavior** on your specific device. If you observe any behavior that does not comply with your local laws, you **must immediately cease any activity that constitutes a legal infraction** (For example, hanging up the call, deleting the audio files, etc).
+
+
+## Official download and project links
+
+Android call recording project using Shizuku and ADB-supported capabilities; device and Android-version compatibility can vary.
+
+- **Latest Android APK:** [Download the latest release](https://github.com/N2K02/ShizuCallRecorder/releases/latest)
+- **All releases and version history:** [GitHub Releases](https://github.com/N2K02/ShizuCallRecorder/releases)
+- **Source code and issue reporting:** [ShizuCallRecorder repository](https://github.com/N2K02/ShizuCallRecorder)
+
+The APK is distributed through GitHub Releases. If no release is available, check the repository's Releases page for future published builds. Google indexing is not guaranteed; this section provides clear crawlable links for visitors and search engines.

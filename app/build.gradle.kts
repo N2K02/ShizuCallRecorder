@@ -133,8 +133,8 @@ android {
         minSdk = 30
         targetSdk = 36
         // Keep theses two values hard-coded here and update them per version. (To keep F-Droid compatibility since their parser is very basic)
-        versionCode = 38
-        versionName = "1.5.2" // Publish inline update card and progress UI
+        versionCode = 39
+        versionName = "1.5.3" // Update moved into the settings menu, footer removed
 
         buildConfigField("String", "SCRCPY_VERSION", "\"$scrcpyVersion\"")
         buildConfigField("String", "SCRCPY_SERVER_SHA256", "\"$scrcpyServerSha256\"")

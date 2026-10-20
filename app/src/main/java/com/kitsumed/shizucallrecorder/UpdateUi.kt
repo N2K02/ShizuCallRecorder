@@ -52,29 +52,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import com.kitsumed.shizucallrecorder.integrations.scrcpy.ScrcpyConfig
 
 private tailrec fun Context.activity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.activity()
     else -> null
-}
-
-/**
- * Hides the footer while scrolling down and shows it again on scrolling up.
- * Add `Modifier.nestedScroll(FooterScroll.connection)` to the screen's Scaffold.
- */
-object FooterScroll {
-    var visible by mutableStateOf(true)
-        private set
-
-    val connection = object : NestedScrollConnection {
-        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-            if (available.y < -6f) visible = false // content moves up = scrolling down
-            else if (available.y > 6f) visible = true
-            return Offset.Zero
-        }
-    }
 }
 
 /**
@@ -88,7 +72,14 @@ fun UpdateCard(modifier: Modifier = Modifier) {
     var diagnosticsVisible by remember { mutableStateOf(false) }
     LaunchedEffect(state) { if (state !is AppUpdater.State.Failed) diagnosticsVisible = false }
     val activity = LocalContext.current.activity()
-    val visible = state is AppUpdater.State.Checking || state is AppUpdater.State.Available || state is AppUpdater.State.Downloading ||
+    // "You're up to date" (after a manual check) shows for a few seconds, then goes away.
+    LaunchedEffect(state) {
+        if (state is AppUpdater.State.UpToDate) {
+            delay(5_000)
+            if (AppUpdater.state.value is AppUpdater.State.UpToDate) AppUpdater.dismiss()
+        }
+    }
+    val visible = state is AppUpdater.State.UpToDate || state is AppUpdater.State.Checking || state is AppUpdater.State.Available || state is AppUpdater.State.Downloading ||
         state is AppUpdater.State.NeedsPermission || state is AppUpdater.State.Ready ||
         state is AppUpdater.State.Failed
     AnimatedVisibility(visible = visible, modifier = modifier) {
@@ -106,6 +97,13 @@ fun UpdateCard(modifier: Modifier = Modifier) {
                         Title("Checking for updates…")
                         LinearProgressIndicator(Modifier.fillMaxWidth())
                         Text("Contacting GitHub for the latest release.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    is AppUpdater.State.UpToDate -> {
+                        Title("You're up to date")
+                        Text(
+                            "Version ${AppUpdater.installedVersionName} is the latest.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     }
                     is AppUpdater.State.Available -> {
                         Title("Update available: ${s.release.versionName}")
@@ -185,125 +183,23 @@ private fun Title(text: String) {
     Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
 }
 
-/**
- * Slim footer fixed at the bottom: app name and version on the left, the update action on
- * the right. Slides away while scrolling down (see [FooterScroll]) and stays visible while an
- * update is in progress. Put it in the Scaffold's bottomBar.
- */
+/** Version, build and scrcpy server of this build (it was shown by tapping the old footer). */
 @Composable
-fun UpdateFooterBar(
-    appName: String,
-    modifier: Modifier = Modifier,
-    onOpenUpdates: () -> Unit = {},
-    aboutAction: @Composable () -> Unit = {},
-) {
-    val state by AppUpdater.state.collectAsState()
-    var showVersionDetails by androidx.compose.runtime.remember { mutableStateOf(false) }
-    val activity = LocalContext.current.activity()
-    val busy = state is AppUpdater.State.Downloading || state is AppUpdater.State.Ready ||
-        state is AppUpdater.State.NeedsPermission
-    val scheme = MaterialTheme.colorScheme
-    AnimatedVisibility(
-        visible = FooterScroll.visible || busy,
-        enter = expandVertically(expandFrom = Alignment.Top),
-        exit = shrinkVertically(shrinkTowards = Alignment.Top),
-        modifier = modifier,
-    ) {
-        Surface(
-            color = scheme.surfaceContainer,
-            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-            tonalElevation = 2.dp,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .navigationBarsPadding()
-                    .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp)
-                    .heightIn(min = 40.dp),
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(scheme.primaryContainer),
-                ) {
-                    Text(
-                        appName.take(1),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = scheme.onPrimaryContainer,
-                    )
-                }
-                Text(
-                    "$appName  ·  v${AppUpdater.installedVersionName}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = scheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 10.dp)
-                        .clickable { showVersionDetails = true },
-                )
-                aboutAction()
-                val small = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
-                val buttonModifier = Modifier.heightIn(min = 32.dp)
-                when (val s = state) {
-                    is AppUpdater.State.Checking -> Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(end = 8.dp),
-                    ) {
-                        CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                        Text("  Checking…", style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
-                    }
-                    is AppUpdater.State.Available -> Button(
-                        onClick = { AppUpdater.update(s.release) }, contentPadding = small, modifier = buttonModifier,
-                    ) { Text("Update to ${s.release.versionName}", style = MaterialTheme.typography.labelMedium) }
-                    is AppUpdater.State.Downloading -> Text(
-                        s.progress?.let { "Downloading ${(it * 100).toInt()}%" } ?: "Downloading…",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = scheme.primary,
-                        modifier = Modifier.padding(end = 8.dp),
-                    )
-                    is AppUpdater.State.Ready -> Button(
-                        onClick = { AppUpdater.install(s.release) }, contentPadding = small, modifier = buttonModifier,
-                    ) { Text("Install ${s.release.versionName}", style = MaterialTheme.typography.labelMedium) }
-                    is AppUpdater.State.NeedsPermission -> Button(
-                        onClick = { activity?.let { AppUpdater.openInstallPermission(it) } },
-                        contentPadding = small, modifier = buttonModifier,
-                    ) { Text("Allow installs", style = MaterialTheme.typography.labelMedium) }
-                    is AppUpdater.State.UpToDate -> FilledTonalButton(
-                        onClick = { AppUpdater.check(manual = true) }, contentPadding = small, modifier = buttonModifier,
-                    ) { Text("Up to date ✓", style = MaterialTheme.typography.labelMedium) }
-                    else -> FilledTonalButton(
-                        onClick = { AppUpdater.check(manual = true) }, contentPadding = small, modifier = buttonModifier,
-                    ) { Text("Check for updates", style = MaterialTheme.typography.labelMedium) }
-                }
+fun AppDetailsDialog(appName: String, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("App details") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Application: $appName")
+                Text("App version: ${AppUpdater.installedVersionName}")
+                Text("Build number: ${BuildConfig.VERSION_CODE}")
+                Text("scrcpy server: ${ScrcpyConfig.SCRCPY_VERSION}")
             }
-        }
-    }
-
-    if (showVersionDetails) {
-        AlertDialog(
-            onDismissRequest = { showVersionDetails = false },
-            title = { Text("App details") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Application: $appName")
-                    Text("App version: ${AppUpdater.installedVersionName}")
-                    Text("Build number: ${BuildConfig.VERSION_CODE}")
-                    Text("scrcpy server: ${ScrcpyConfig.SCRCPY_VERSION}")
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showVersionDetails = false }) { Text("Close") }
-            }
-        )
-    }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
 }
-
 
 /**
  * Dedicated update page. The update card remains visible at the top while checking,

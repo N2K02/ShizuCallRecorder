@@ -37,6 +37,9 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -60,9 +63,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsumed.shizucallrecorder.R
-import com.kitsumed.shizucallrecorder.FooterScroll
+import com.kitsumed.shizucallrecorder.AppDetailsDialog
+import com.kitsumed.shizucallrecorder.AppUpdater
 import com.kitsumed.shizucallrecorder.UpdateCard
-import com.kitsumed.shizucallrecorder.UpdateFooterBar
 import com.kitsumed.shizucallrecorder.UpdatesScreen
 import com.kitsumed.shizucallrecorder.ui.screens.RecordingsActivity
 import com.kitsumed.shizucallrecorder.data.AppPreferences
@@ -131,11 +134,6 @@ fun SettingsScreen(
             onOpenRecordings = { context.startActivity(Intent(context, RecordingsActivity::class.java)) },
             modifier = modifier.fillMaxSize()
         )
-        UpdateFooterBar(
-            appName = "ShizuCallRecorder",
-            modifier = Modifier.align(Alignment.BottomCenter),
-            aboutAction = { AboutSection() }
-        )
     }
 }
 
@@ -165,21 +163,23 @@ fun SettingsContent(
         color = MaterialTheme.colorScheme.background
     ) {
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(FooterScroll.connection),
-            // Reserve space for the fixed version/update footer while keeping edge-to-edge scrolling.
+            modifier = Modifier.fillMaxSize(),
+            // safeDrawing keeps the content clear of the status bar and of a static navigation bar.
             contentPadding = WindowInsets.safeDrawing
-                .add(WindowInsets(left = 20.dp, right = 20.dp, top = 0.dp, bottom = 84.dp))
+                .add(WindowInsets(left = 20.dp, right = 20.dp, top = 0.dp, bottom = 24.dp))
                 .asPaddingValues(),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             item {
-                Text(
-                    text = stringResource(R.string.general_settings),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.general_settings),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    SettingsMenu()
+                }
             }
             item {
                 UpdateCard(modifier = Modifier.fillMaxWidth())
@@ -223,44 +223,96 @@ fun SettingsContent(
 
 // ── Settings sections ──────────────────────────────────────────────────────────────────────
 
-/** Icon-only footer action for About, licenses, the project wiki, and sponsorship. */
+/**
+ * The gear next to the title. Its menu has Update (version and status; checks when tapped, the
+ * update card below shows the result), About (wiki, licenses, sponsorship) and App details.
+ */
 @Composable
-private fun AboutSection() {
+private fun SettingsMenu() {
+    var menuOpen by remember { mutableStateOf(false) }
+    var aboutOpen by remember { mutableStateOf(false) }
+    var detailsOpen by remember { mutableStateOf(false) }
+    val state by AppUpdater.state.collectAsState()
+
+    Box {
+        IconButton(onClick = { menuOpen = true }) {
+            Icon(Icons.Default.Settings, contentDescription = "Settings")
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = {
+                    Column {
+                        Text("Update")
+                        Text(
+                            when (val u = state) {
+                                is AppUpdater.State.Checking -> "Checking…"
+                                is AppUpdater.State.Available -> "Version ${u.release.versionName} available"
+                                is AppUpdater.State.Downloading -> "Downloading…"
+                                is AppUpdater.State.Ready, is AppUpdater.State.NeedsPermission -> "Ready to install"
+                                is AppUpdater.State.UpToDate -> "Up to date · v${AppUpdater.installedVersionName}"
+                                else -> "v${AppUpdater.installedVersionName} · check for updates"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                leadingIcon = { Icon(Icons.Default.SystemUpdate, contentDescription = null) },
+                onClick = {
+                    menuOpen = false
+                    // Other states already show their card with the right buttons.
+                    if (state is AppUpdater.State.Idle || state is AppUpdater.State.UpToDate || state is AppUpdater.State.Failed) {
+                        AppUpdater.check(manual = true)
+                    }
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.settings_section_about)) },
+                leadingIcon = { Icon(Icons.Default.Info, contentDescription = null) },
+                onClick = { menuOpen = false; aboutOpen = true },
+            )
+            DropdownMenuItem(
+                text = { Text("App details") },
+                leadingIcon = { Icon(Icons.Default.Smartphone, contentDescription = null) },
+                onClick = { menuOpen = false; detailsOpen = true },
+            )
+        }
+    }
+
+    AboutSection(open = aboutOpen, onClose = { aboutOpen = false })
+    if (detailsOpen) AppDetailsDialog("ShizuCallRecorder") { detailsOpen = false }
+}
+
+/** About dialog: the project wiki, licenses and sponsorship. */
+@Composable
+private fun AboutSection(open: Boolean, onClose: () -> Unit) {
     val context = LocalContext.current
-    var showAboutDialog by remember { mutableStateOf(false) }
     var showLicensesDialog by remember { mutableStateOf(false) }
     var showSponsorScreen by remember { mutableStateOf(false) }
 
-    IconButton(onClick = { showAboutDialog = true }) {
-        Icon(
-            imageVector = Icons.Default.Info,
-            contentDescription = stringResource(R.string.settings_section_about),
-        )
-    }
-
-    if (showAboutDialog) {
+    if (open) {
         AlertDialog(
-            onDismissRequest = { showAboutDialog = false },
+            onDismissRequest = onClose,
             title = { Text(stringResource(R.string.settings_section_about)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         onClick = {
-                            showAboutDialog = false
+                            onClose()
                             context.openGithubWiki()
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text(stringResource(R.string.settings_open_github_Wiki)) }
                     OutlinedButton(
                         onClick = {
-                            showAboutDialog = false
+                            onClose()
                             showLicensesDialog = true
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text(stringResource(R.string.settings_view_licenses)) }
                     Button(
                         onClick = {
-                            showAboutDialog = false
+                            onClose()
                             showSponsorScreen = true
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -268,7 +320,7 @@ private fun AboutSection() {
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showAboutDialog = false }) {
+                TextButton(onClick = { onClose() }) {
                     Text(stringResource(R.string.general_close))
                 }
             }

@@ -15,8 +15,8 @@ permissions:
 
 # Serialize releases so concurrent runs cannot race while creating tags.
 concurrency:
-  group: release
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   APP: ShizuCallRecorder

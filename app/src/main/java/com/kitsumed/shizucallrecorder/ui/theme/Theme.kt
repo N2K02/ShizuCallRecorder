@@ -68,6 +68,7 @@ private val LightColorScheme = lightColorScheme(
     outline = GreyGreenOutline
 )
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ShizuCallRecorderTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -99,7 +100,6 @@ fun ShizuCallRecorderTheme(
         }
     }
 
-    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
         motionScheme = MotionScheme.expressive(),

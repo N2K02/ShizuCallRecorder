@@ -218,16 +218,16 @@ fun UpdatesScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             headlineContent = { Text("ShizuCallRecorder") },
             supportingContent = { Text("Version " + AppUpdater.installedVersionName) },
         )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Experimental updates", style = MaterialTheme.typography.titleMedium)
-                Text("Offer signed APKs from successful pull request builds. Test builds may have bugs.")
-            }
-            androidx.compose.material3.Switch(
-                checked = experimentalEnabled,
-                onCheckedChange = LiveUpdater::setExperimentalEnabled,
-            )
-        }
+        androidx.compose.material3.ListItem(
+            headlineContent = { Text("Experimental updates") },
+            supportingContent = { Text("Offer signed APKs from successful pull request builds. Test builds may have bugs.") },
+            trailingContent = {
+                androidx.compose.material3.Switch(
+                    checked = experimentalEnabled,
+                    onCheckedChange = LiveUpdater::setExperimentalEnabled,
+                )
+            },
+        )
         androidx.compose.material3.HorizontalDivider()
         dev.n2k02.updater.N2K02UpdateScreen(
             controller = LiveUpdater.controller,

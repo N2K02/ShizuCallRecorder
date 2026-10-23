@@ -46,6 +46,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -157,6 +159,11 @@ fun SettingsContent(
     onOpenRecordings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showingUpdates by remember { mutableStateOf(false) }
+    if (showingUpdates) {
+        UpdatesScreen(onBack = { showingUpdates = false }, modifier = modifier)
+        return
+    }
     Surface(
         modifier = modifier
             .fillMaxSize(),
@@ -178,17 +185,14 @@ fun SettingsContent(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
-                    SettingsMenu()
+                    SettingsMenu(onOpenUpdates = { showingUpdates = true })
                 }
-            }
-            item {
-                UpdateCard(modifier = Modifier.fillMaxWidth())
             }
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenRecordings),
                     shape = MaterialTheme.shapes.extraLarge,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                    
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(20.dp),
@@ -228,43 +232,24 @@ fun SettingsContent(
  * update card below shows the result), About (wiki, licenses, sponsorship) and App details.
  */
 @Composable
-private fun SettingsMenu() {
+private fun SettingsMenu(onOpenUpdates: () -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
     var aboutOpen by remember { mutableStateOf(false) }
     var detailsOpen by remember { mutableStateOf(false) }
-    val state by AppUpdater.state.collectAsState()
 
     Box {
         IconButton(onClick = { menuOpen = true }) {
             Icon(Icons.Default.Settings, contentDescription = "Settings")
         }
-        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            modifier = Modifier,
+        ) {
             DropdownMenuItem(
-                text = {
-                    Column {
-                        Text("Update")
-                        Text(
-                            when (val u = state) {
-                                is AppUpdater.State.Checking -> "Checking…"
-                                is AppUpdater.State.Available -> "Version ${u.release.versionName} available"
-                                is AppUpdater.State.Downloading -> "Downloading…"
-                                is AppUpdater.State.Ready, is AppUpdater.State.NeedsPermission -> "Ready to install"
-                                is AppUpdater.State.UpToDate -> "Up to date · v${AppUpdater.installedVersionName}"
-                                else -> "v${AppUpdater.installedVersionName} · check for updates"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
+                text = { Text("About & updates") },
                 leadingIcon = { Icon(Icons.Default.SystemUpdate, contentDescription = null) },
-                onClick = {
-                    menuOpen = false
-                    // Other states already show their card with the right buttons.
-                    if (state is AppUpdater.State.Idle || state is AppUpdater.State.UpToDate || state is AppUpdater.State.Failed) {
-                        AppUpdater.check(manual = true)
-                    }
-                },
+                onClick = { menuOpen = false; onOpenUpdates() },
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.settings_section_about)) },

@@ -1,0 +1,46 @@
+name: ShizuCallRecorder experimental APK (MRadio-style)
+
+on:
+  push:
+    branches: [experimental/shared-libraries]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate shared theme and updater
+    # Never expose private package credentials to external fork PRs.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Compile and test with both shared libraries
+        env:
+          N2K02_PACKAGES_TOKEN: ${{ secrets.N2K02_PACKAGES_TOKEN }}
+          SKIP_SIGNING: 'true'
+        run: |
+          test -n "$N2K02_PACKAGES_TOKEN" || { echo "::error::N2K02_PACKAGES_TOKEN secret is missing"; exit 1; }
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug -PuseN2K02Libraries=true
+      - name: Upload experimental debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShizuCallRecorder-experimental-${{ github.sha }}
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14

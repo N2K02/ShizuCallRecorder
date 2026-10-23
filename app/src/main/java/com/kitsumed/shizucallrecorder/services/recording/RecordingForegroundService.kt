@@ -37,6 +37,8 @@ import kotlin.coroutines.cancellation.CancellationException
  */
 class RecordingForegroundService : Service() {
     companion object {
+        @Volatile var recordingInProgress: Boolean = false
+            private set
         // -- Intent action for controlling and initializing the service lifecycle. --
 
         /** Intent action sent to this service to initialize the service and immediately start a new recording session. */
@@ -103,6 +105,7 @@ class RecordingForegroundService : Service() {
         serviceScope.launch(Dispatchers.Main.immediate) { // Use immediate to ensure we get the initial (oldState) value on launch
             var oldState: RecordingServiceState = _serviceState.value
             _serviceState.collect { newState ->
+                recordingInProgress = newState is RecordingServiceState.Starting || newState is RecordingServiceState.Active
                 if (oldState != newState) {
                     updateNotification()
                     notificationHelper.handleStateChangeToasts(oldState, newState)
@@ -241,6 +244,7 @@ class RecordingForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        recordingInProgress = false
         // Always clean up, even if the OS kills the service mid-recording.
         // This is the guaranteed last callback before the service process is cleaned up.
         AppLogger.v( "RecordingForegroundService is destroying... Ensuring cleanup...")

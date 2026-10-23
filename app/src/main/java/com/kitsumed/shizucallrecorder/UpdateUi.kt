@@ -207,51 +207,31 @@ fun AppDetailsDialog(appName: String, onDismiss: () -> Unit) {
  */
 @Composable
 fun UpdatesScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
-    val state by AppUpdater.state.collectAsState()
-
-    LaunchedEffect(Unit) {
-        if (state is AppUpdater.State.Idle || state is AppUpdater.State.UpToDate) {
-            AppUpdater.check(manual = true)
-        }
-    }
-
+    val experimentalEnabled by LiveUpdater.experimentalEnabled.collectAsState()
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         TextButton(onClick = onBack) { Text("← Back to settings") }
-        Text(
-            "Updates",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
+        Text("About & updates", style = MaterialTheme.typography.headlineMedium)
+        androidx.compose.material3.ListItem(
+            headlineContent = { Text("ShizuCallRecorder") },
+            supportingContent = { Text("Version " + AppUpdater.installedVersionName) },
         )
-        Text(
-            "Installed version: ${AppUpdater.installedVersionName}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        androidx.compose.material3.ListItem(
+            headlineContent = { Text("Experimental updates") },
+            supportingContent = { Text("Offer signed APKs from successful pull request builds. Test builds may have bugs.") },
+            trailingContent = {
+                androidx.compose.material3.Switch(
+                    checked = experimentalEnabled,
+                    onCheckedChange = LiveUpdater::setExperimentalEnabled,
+                )
+            },
         )
-
-        UpdateCard(modifier = Modifier.fillMaxWidth())
-
-        if (state is AppUpdater.State.UpToDate) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Title("You're up to date")
-                    Text("You're using the latest available version of ShizuCallRecorder.")
-                    Button(onClick = { AppUpdater.check(manual = true) }) {
-                        Text("Check again")
-                    }
-                }
-            }
-        } else if (state is AppUpdater.State.Idle) {
-            Button(onClick = { AppUpdater.check(manual = true) }) {
-                Text("Check for updates")
-            }
-        }
+        androidx.compose.material3.HorizontalDivider()
+        dev.n2k02.updater.N2K02UpdateScreen(
+            controller = LiveUpdater.controller,
+            installGuard = LiveUpdater.installGuard,
+        )
     }
 }

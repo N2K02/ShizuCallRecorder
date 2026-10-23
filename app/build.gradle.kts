@@ -132,9 +132,14 @@ android {
         applicationId = "com.kitsumed.shizucallrecorder"
         minSdk = 30
         targetSdk = 36
-        // Keep theses two values hard-coded here and update them per version. (To keep F-Droid compatibility since their parser is very basic)
+        // Keep these defaults literal for F-Droid. CI overrides them with monotonically increasing
+        // APK version codes while preserving the human-facing release version.
         versionCode = 39
         versionName = "1.5.3" // Update moved into the settings menu, footer removed
+        providers.gradleProperty("appVersionCode").orNull?.toIntOrNull()?.let { versionCode = it }
+        providers.gradleProperty("appVersion").orNull?.let { requested ->
+            versionName = requested + (providers.gradleProperty("appVersionSuffix").orNull ?: "")
+        }
 
         buildConfigField("String", "SCRCPY_VERSION", "\"$scrcpyVersion\"")
         buildConfigField("String", "SCRCPY_SERVER_SHA256", "\"$scrcpyServerSha256\"")

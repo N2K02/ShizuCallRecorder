@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.kitsumed.shizucallrecorder
 
 import android.app.Activity
@@ -29,6 +31,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -95,7 +98,7 @@ fun UpdateCard(modifier: Modifier = Modifier) {
                 when (val s = state) {
                     is AppUpdater.State.Checking -> {
                         Title("Checking for updates…")
-                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                        LoadingIndicator(Modifier.size(36.dp))
                         Text("Contacting GitHub for the latest release.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     is AppUpdater.State.UpToDate -> {

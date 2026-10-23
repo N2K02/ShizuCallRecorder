@@ -13,6 +13,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.ui.tooling.preview.Preview
 import com.kitsumed.shizucallrecorder.ui.theme.ShizuCallRecorderTheme
 
@@ -69,7 +73,8 @@ fun M3DropdownField(
         )
         ExposedDropdownMenu(
             expanded         = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.clip(RoundedCornerShape(24.dp))
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
@@ -101,6 +106,7 @@ fun M3DropdownField(
                             expanded = false
                         }
                     },
+                    leadingIcon = if (option.key == selected.key) ({ Icon(Icons.Rounded.Check, contentDescription = null) }) else null,
                     enabled        = option.enabled,
                     contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                 )

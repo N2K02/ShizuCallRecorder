@@ -223,7 +223,7 @@ object AppUpdater {
     private val updateManifestBase = "https://n2k02.github.io/shizucallrecorder/updates"
 
     private suspend fun latestRelease(): Release? =
-        runCatching { publishedRelease(experimental = false) }.getOrNull() ?: legacyLatestRelease()
+        publishedRelease(experimental = false)
 
     private suspend fun experimentalRelease(): Release? =
         publishedRelease(experimental = true)
@@ -266,73 +266,6 @@ object AppUpdater {
         } finally {
             connection.disconnect()
         }
-    }
-
-    private suspend fun legacyLatestRelease(): Release? = withContext(Dispatchers.IO) {
-        val c = URL("https://api.github.com/repos/$repo/releases/latest").openConnection() as HttpURLConnection
-        try {
-            c.connectTimeout = 10_000
-            c.readTimeout = 15_000
-            c.setRequestProperty("Accept", "application/vnd.github+json")
-            c.setRequestProperty("X-GitHub-Api-Version", "2026-03-10")
-            c.setRequestProperty("User-Agent", "$appName-updater (Android)")
-            if (c.responseCode == 404) return@withContext null
-            if (c.responseCode != 200) throw httpError(c, c.responseCode)
-            val o = JSONObject(c.inputStream.bufferedReader().use { it.readText() })
-            if (o.optBoolean("draft") || o.optBoolean("prerelease")) return@withContext null
-            val tag = o.optString("tag_name")
-            val name = tag.removePrefix("v")
-            val code = versionCodeFromName(name) ?: return@withContext null
-            val assets = o.optJSONArray("assets") ?: return@withContext null
-            val apk = (0 until assets.length()).map { assets.getJSONObject(it) }
-                .firstOrNull { it.optString("name").endsWith(".apk", ignoreCase = true) }
-                ?: return@withContext null
-            Release(
-                tag = tag,
-                versionName = name,
-                versionCode = code,
-                notes = whatsNew(o.optString("body")),
-                apkUrl = apk.optString("browser_download_url"),
-                apkName = apk.optString("name"),
-                apkSize = apk.optLong("size"),
-                sha256 = apk.optString("digest").takeIf { it.startsWith("sha256:") }?.removePrefix("sha256:")?.lowercase(),
-                pageUrl = o.optString("html_url"),
-            )
-        } finally {
-            c.disconnect()
-        }
-    }
-
-    /** Release labels use semantic versions; the downloaded APK's real versionCode is verified separately. */
-    private fun versionCodeFromName(name: String): Long? {
-        val m = Regex("""^(\d+)\.(\d+)(?:\.(\d+))?$""").find(name.trim()) ?: return null
-        val major = m.groupValues[1].toLongOrNull() ?: return null
-        val minor = m.groupValues[2].toLongOrNull() ?: return null
-        val patch = m.groupValues.getOrNull(3)?.takeIf { it.isNotEmpty() }?.toLongOrNull() ?: 0L
-        return major * 1_000_000L + minor * 1_000L + patch
-    }
-
-    private fun compareVersionNames(left: String, right: String): Int {
-        fun parts(value: String): List<Long> {
-            val parsed = value.split('.').map { it.toLongOrNull() ?: 0L }
-            return listOf(parsed.getOrElse(0) { 0L }, parsed.getOrElse(1) { 0L }, parsed.getOrElse(2) { 0L })
-        }
-        val a = parts(left)
-        val b = parts(right)
-        for (i in 0..2) if (a[i] != b[i]) return a[i].compareTo(b[i])
-        return 0
-    }
-
-    /** The "- change" lines of the release notes, without headings and build details. */
-    private fun whatsNew(body: String): List<String> {
-        val lines = body.lineSequence().map { it.trim() }
-        val section = lines.dropWhile { !it.startsWith("### What's new", ignoreCase = true) }.drop(1)
-            .takeWhile { !it.startsWith("#") }.toList()
-            .ifEmpty { body.lines().map { it.trim() } }
-        return section.filter { it.startsWith("- ") || it.startsWith("* ") }
-            .map { it.drop(2).trim() }
-            .filterNot { it.contains("[skip ci]") || it.startsWith("README", ignoreCase = true) }
-            .take(12)
     }
 
     // ---------------------------------------------------------------- download + verify

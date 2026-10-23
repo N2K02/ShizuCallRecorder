@@ -82,11 +82,23 @@ object AppUpdater {
     val state: StateFlow<State> = _state
 
     private val prefs by lazy { app.getSharedPreferences("app_updater", Context.MODE_PRIVATE) }
+    private val _experimentalEnabled = MutableStateFlow(false)
+    val experimentalEnabled: StateFlow<Boolean> = _experimentalEnabled
+
+    fun setExperimentalEnabled(enabled: Boolean) {
+        if (_experimentalEnabled.value == enabled) return
+        _experimentalEnabled.value = enabled
+        prefs.edit().putBoolean("experimentalEnabled", enabled).remove("lastCheck").apply()
+        dismiss()
+        check(manual = true)
+    }
 
     fun init(context: Context, repo: String, appName: String) {
         app = context.applicationContext
         this.repo = repo
         this.appName = appName
+        _experimentalEnabled.value = app.getSharedPreferences("app_updater", Context.MODE_PRIVATE)
+            .getBoolean("experimentalEnabled", false)
         if (context is Activity) activityRef = WeakReference(context)
         // A new app start: an update that installed (or was abandoned) leaves its APK behind.
         if (_state.value is State.Idle) runCatching { updateDir().deleteRecursively() }
@@ -116,12 +128,18 @@ object AppUpdater {
         if (job?.isActive == true) return
         job = scope.launch {
             _state.value = State.Checking
-            val result = runCatching { latestRelease() }
+            val result = runCatching {
+                val stable = latestRelease()
+                val experimental = if (_experimentalEnabled.value) {
+                    runCatching { experimentalRelease() }.getOrNull()
+                } else null
+                listOfNotNull(stable, experimental).maxByOrNull { it.versionCode }
+            }
             prefs.edit().putLong("lastCheck", System.currentTimeMillis()).apply()
             val release = result.getOrNull()
             _state.value = when {
                 result.isFailure -> if (manual) State.Failed("Couldn't reach GitHub. Check the details for more information.", null, diagnostic(result.exceptionOrNull(), null)) else State.Idle
-                release == null || compareVersionNames(release.versionName, installedVersionName) <= 0 -> if (manual) State.UpToDate(true) else State.Idle
+                release == null || release.versionCode <= installedVersionCode -> if (manual) State.UpToDate(true) else State.Idle
                 !manual && prefs.getString("skipped", null) == release.tag -> State.Idle
                 else -> State.Available(release)
             }
@@ -202,71 +220,52 @@ object AppUpdater {
 
     // ---------------------------------------------------------------- GitHub
 
-    private suspend fun latestRelease(): Release? = withContext(Dispatchers.IO) {
-        val c = URL("https://api.github.com/repos/$repo/releases/latest").openConnection() as HttpURLConnection
+    private val updateManifestBase = "https://n2k02.github.io/shizucallrecorder/updates"
+
+    private suspend fun latestRelease(): Release? =
+        publishedRelease(experimental = false)
+
+    private suspend fun experimentalRelease(): Release? =
+        publishedRelease(experimental = true)
+
+    private suspend fun publishedRelease(experimental: Boolean): Release? = withContext(Dispatchers.IO) {
+        val channel = if (experimental) "experimental" else "stable"
+        val connection = URL("$updateManifestBase/$channel.json").openConnection() as HttpURLConnection
         try {
-            c.connectTimeout = 10_000
-            c.readTimeout = 15_000
-            c.setRequestProperty("Accept", "application/vnd.github+json")
-            c.setRequestProperty("X-GitHub-Api-Version", "2026-03-10")
-            c.setRequestProperty("User-Agent", "$appName-updater (Android)")
-            if (c.responseCode == 404) return@withContext null
-            if (c.responseCode != 200) throw httpError(c, c.responseCode)
-            val o = JSONObject(c.inputStream.bufferedReader().use { it.readText() })
-            if (o.optBoolean("draft") || o.optBoolean("prerelease")) return@withContext null
-            val tag = o.optString("tag_name")
-            val name = tag.removePrefix("v")
-            val code = versionCodeFromName(name) ?: return@withContext null
-            val assets = o.optJSONArray("assets") ?: return@withContext null
-            val apk = (0 until assets.length()).map { assets.getJSONObject(it) }
-                .firstOrNull { it.optString("name").endsWith(".apk", ignoreCase = true) }
-                ?: return@withContext null
+            connection.connectTimeout = 10_000
+            connection.readTimeout = 15_000
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Cache-Control", "no-cache")
+            connection.setRequestProperty("User-Agent", "$appName-updater (Android)")
+            if (connection.responseCode == 404) return@withContext null
+            if (connection.responseCode != 200) throw httpError(connection, connection.responseCode)
+            val data = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+            val code = data.optLong("versionCode")
+            val apkUrl = data.optString("apkUrl")
+            val digest = data.optString("sha256").lowercase()
+            if (data.optString("channel") != channel || code <= 0L ||
+                !apkUrl.startsWith("https://") || !Regex("[a-f0-9]{64}").matches(digest)
+            ) throw IOException("Invalid $channel update manifest")
+            val notesJson = data.optJSONArray("notes")
             Release(
-                tag = tag,
-                versionName = name,
+                tag = data.optString("tag").takeIf { it.isNotBlank() }
+                    ?: throw IOException("Invalid $channel update tag"),
+                versionName = data.optString("versionName"),
                 versionCode = code,
-                notes = whatsNew(o.optString("body")),
-                apkUrl = apk.optString("browser_download_url"),
-                apkName = apk.optString("name"),
-                apkSize = apk.optLong("size"),
-                sha256 = apk.optString("digest").takeIf { it.startsWith("sha256:") }?.removePrefix("sha256:")?.lowercase(),
-                pageUrl = o.optString("html_url"),
+                notes = notesJson?.let { array ->
+                    (0 until array.length()).map { array.optString(it) }.take(12)
+                } ?: emptyList(),
+                apkUrl = apkUrl,
+                apkName = data.optString("apkName"),
+                apkSize = data.optLong("apkSize"),
+                sha256 = digest,
+                pageUrl = data.optString("pageUrl").ifBlank {
+                    "https://github.com/N2K02/n2k02.github.io/releases"
+                },
             )
         } finally {
-            c.disconnect()
+            connection.disconnect()
         }
-    }
-
-    /** Release labels use semantic versions; the downloaded APK's real versionCode is verified separately. */
-    private fun versionCodeFromName(name: String): Long? {
-        val m = Regex("""^(\d+)\.(\d+)(?:\.(\d+))?$""").find(name.trim()) ?: return null
-        val major = m.groupValues[1].toLongOrNull() ?: return null
-        val minor = m.groupValues[2].toLongOrNull() ?: return null
-        val patch = m.groupValues.getOrNull(3)?.takeIf { it.isNotEmpty() }?.toLongOrNull() ?: 0L
-        return major * 1_000_000L + minor * 1_000L + patch
-    }
-
-    private fun compareVersionNames(left: String, right: String): Int {
-        fun parts(value: String): List<Long> {
-            val parsed = value.split('.').map { it.toLongOrNull() ?: 0L }
-            return listOf(parsed.getOrElse(0) { 0L }, parsed.getOrElse(1) { 0L }, parsed.getOrElse(2) { 0L })
-        }
-        val a = parts(left)
-        val b = parts(right)
-        for (i in 0..2) if (a[i] != b[i]) return a[i].compareTo(b[i])
-        return 0
-    }
-
-    /** The "- change" lines of the release notes, without headings and build details. */
-    private fun whatsNew(body: String): List<String> {
-        val lines = body.lineSequence().map { it.trim() }
-        val section = lines.dropWhile { !it.startsWith("### What's new", ignoreCase = true) }.drop(1)
-            .takeWhile { !it.startsWith("#") }.toList()
-            .ifEmpty { body.lines().map { it.trim() } }
-        return section.filter { it.startsWith("- ") || it.startsWith("* ") }
-            .map { it.drop(2).trim() }
-            .filterNot { it.contains("[skip ci]") || it.startsWith("README", ignoreCase = true) }
-            .take(12)
     }
 
     // ---------------------------------------------------------------- download + verify

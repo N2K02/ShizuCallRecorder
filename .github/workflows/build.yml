@@ -8,6 +8,15 @@ on:
       - "app/build.gradle.kts"
       - "app/src/**"
       - ".github/workflows/build.yml"
+      - ".github/scripts/**"
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - "app/build.gradle.kts"
+      - "app/src/**"
+      - ".github/workflows/build.yml"
+      - ".github/scripts/**"
   workflow_dispatch:
 
 permissions:
@@ -24,6 +33,7 @@ env:
 jobs:
   build:
     name: Build and publish signed APK
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -48,9 +58,16 @@ jobs:
             echo "::error::Could not read versionName from app/build.gradle.kts"
             exit 1
           fi
+          VERSION_CODE=$((100000 + GITHUB_RUN_NUMBER))
+          VERSION_SUFFIX=""
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            VERSION_SUFFIX="-experimental.$GITHUB_RUN_NUMBER"
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "Release version: $VERSION"
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+          echo "VERSION_SUFFIX=$VERSION_SUFFIX" >> "$GITHUB_ENV"
+          echo "Release version: $VERSION$VERSION_SUFFIX (versionCode $VERSION_CODE)"
 
           if git tag --list "v$VERSION" | grep -Fxq "v$VERSION"; then
             echo "::notice::Release v$VERSION already exists; this run will build an APK artifact without replacing that release."
@@ -91,7 +108,10 @@ jobs:
         run: |
           set -o pipefail
           echo "Android SDK: ${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
-          gradle --no-daemon --stacktrace assembleRelease 2>&1 | tee build.log || {
+          gradle --no-daemon --stacktrace assembleRelease \
+            -PappVersion="$VERSION" \
+            -PappVersionCode="$VERSION_CODE" \
+            -PappVersionSuffix="$VERSION_SUFFIX" 2>&1 | tee build.log || {
             msg=$(grep -E '^e: |error:|What went wrong|Dependency .* requires|compileSdk|Android Gradle plugin' -A3 build.log | head -80 | sed -e 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')
             echo "::error title=Build failed::$msg"
             exit 1
@@ -135,7 +155,7 @@ jobs:
           retention-days: 14
 
       - name: Publish APK as a release
-        if: steps.release.outputs.publish_release == 'true'
+        if: github.event_name != 'pull_request' && steps.release.outputs.publish_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.release.outputs.version }}
@@ -144,3 +164,41 @@ jobs:
           body_path: release-notes.md
           files: ShizuCallRecorder-${{ steps.release.outputs.version }}.apk
           make_latest: true
+
+      - name: Publish signed experimental APK to source PR release
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          TAG="experimental-pr-$PR_NUMBER-run-$GITHUB_RUN_NUMBER"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APP-$VERSION.apk" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" "$APP-$VERSION.apk" \
+              --repo "$GITHUB_REPOSITORY" --target "$PR_HEAD_SHA" \
+              --title "$APP experimental · PR #$PR_NUMBER · build $GITHUB_RUN_NUMBER" \
+              --notes-file release-notes.md --prerelease --latest=false
+          fi
+
+      - name: Check public distribution configuration
+        id: distribution
+        env:
+          DIST_TOKEN: ${{ secrets.ANDROID_DISTRIBUTION_TOKEN }}
+        run: |
+          if [ -n "$DIST_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::ANDROID_DISTRIBUTION_TOKEN is unavailable; signed APK artifacts remain available."
+          fi
+
+      - name: Publish stable or experimental APK to public distribution
+        if: steps.distribution.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.ANDROID_DISTRIBUTION_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          VERSION_SUFFIX: ${{ env.VERSION_SUFFIX }}
+        run: bash .github/scripts/publish-distribution.sh

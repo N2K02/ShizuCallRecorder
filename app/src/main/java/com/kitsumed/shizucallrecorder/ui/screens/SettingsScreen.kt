@@ -192,7 +192,7 @@ fun SettingsContent(
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenRecordings),
                     shape = MaterialTheme.shapes.extraLarge,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                    
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(20.dp),
@@ -244,7 +244,7 @@ private fun SettingsMenu(onOpenUpdates: () -> Unit) {
         DropdownMenu(
             expanded = menuOpen,
             onDismissRequest = { menuOpen = false },
-            modifier = Modifier.clip(RoundedCornerShape(22.dp)),
+            modifier = Modifier,
         ) {
             DropdownMenuItem(
                 text = { Text("About & updates") },

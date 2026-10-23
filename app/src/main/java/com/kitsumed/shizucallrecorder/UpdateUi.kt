@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -33,6 +34,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -208,6 +210,7 @@ fun AppDetailsDialog(appName: String, onDismiss: () -> Unit) {
 @Composable
 fun UpdatesScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val state by AppUpdater.state.collectAsState()
+    val experimentalEnabled by AppUpdater.experimentalEnabled.collectAsState()
 
     LaunchedEffect(Unit) {
         if (state is AppUpdater.State.Idle || state is AppUpdater.State.UpToDate) {
@@ -232,6 +235,27 @@ fun UpdatesScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Experimental updates", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Check both signed stable and experimental feeds and offer the highest newer build.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = experimentalEnabled,
+                    onCheckedChange = AppUpdater::setExperimentalEnabled,
+                )
+            }
+        }
 
         UpdateCard(modifier = Modifier.fillMaxWidth())
 

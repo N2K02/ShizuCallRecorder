@@ -46,6 +46,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -238,7 +240,11 @@ private fun SettingsMenu() {
         IconButton(onClick = { menuOpen = true }) {
             Icon(Icons.Default.Settings, contentDescription = "Settings")
         }
-        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            modifier = Modifier.clip(RoundedCornerShape(22.dp)),
+        ) {
             DropdownMenuItem(
                 text = {
                     Column {

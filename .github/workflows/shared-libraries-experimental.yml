@@ -1,4 +1,4 @@
-name: Shared libraries experimental
+name: Shared libraries experimental (ShizuCallRecorder)
 on:
   push:
     branches: [experimental/shared-libraries]

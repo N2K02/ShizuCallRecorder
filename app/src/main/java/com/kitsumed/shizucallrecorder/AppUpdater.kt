@@ -82,11 +82,23 @@ object AppUpdater {
     val state: StateFlow<State> = _state
 
     private val prefs by lazy { app.getSharedPreferences("app_updater", Context.MODE_PRIVATE) }
+    private val _experimentalEnabled = MutableStateFlow(false)
+    val experimentalEnabled: StateFlow<Boolean> = _experimentalEnabled
+
+    fun setExperimentalEnabled(enabled: Boolean) {
+        if (_experimentalEnabled.value == enabled) return
+        _experimentalEnabled.value = enabled
+        prefs.edit().putBoolean("experimentalEnabled", enabled).remove("lastCheck").apply()
+        dismiss()
+        check(manual = true)
+    }
 
     fun init(context: Context, repo: String, appName: String) {
         app = context.applicationContext
         this.repo = repo
         this.appName = appName
+        _experimentalEnabled.value = app.getSharedPreferences("app_updater", Context.MODE_PRIVATE)
+            .getBoolean("experimentalEnabled", false)
         if (context is Activity) activityRef = WeakReference(context)
         // A new app start: an update that installed (or was abandoned) leaves its APK behind.
         if (_state.value is State.Idle) runCatching { updateDir().deleteRecursively() }
@@ -116,12 +128,18 @@ object AppUpdater {
         if (job?.isActive == true) return
         job = scope.launch {
             _state.value = State.Checking
-            val result = runCatching { latestRelease() }
+            val result = runCatching {
+                val stable = latestRelease()
+                val experimental = if (_experimentalEnabled.value) {
+                    runCatching { experimentalRelease() }.getOrNull()
+                } else null
+                listOfNotNull(stable, experimental).maxByOrNull { it.versionCode }
+            }
             prefs.edit().putLong("lastCheck", System.currentTimeMillis()).apply()
             val release = result.getOrNull()
             _state.value = when {
                 result.isFailure -> if (manual) State.Failed("Couldn't reach GitHub. Check the details for more information.", null, diagnostic(result.exceptionOrNull(), null)) else State.Idle
-                release == null || compareVersionNames(release.versionName, installedVersionName) <= 0 -> if (manual) State.UpToDate(true) else State.Idle
+                release == null || release.versionCode <= installedVersionCode -> if (manual) State.UpToDate(true) else State.Idle
                 !manual && prefs.getString("skipped", null) == release.tag -> State.Idle
                 else -> State.Available(release)
             }
@@ -202,7 +220,55 @@ object AppUpdater {
 
     // ---------------------------------------------------------------- GitHub
 
-    private suspend fun latestRelease(): Release? = withContext(Dispatchers.IO) {
+    private val updateManifestBase = "https://n2k02.github.io/shizucallrecorder/updates"
+
+    private suspend fun latestRelease(): Release? =
+        runCatching { publishedRelease(experimental = false) }.getOrNull() ?: legacyLatestRelease()
+
+    private suspend fun experimentalRelease(): Release? =
+        publishedRelease(experimental = true)
+
+    private suspend fun publishedRelease(experimental: Boolean): Release? = withContext(Dispatchers.IO) {
+        val channel = if (experimental) "experimental" else "stable"
+        val connection = URL("$updateManifestBase/$channel.json").openConnection() as HttpURLConnection
+        try {
+            connection.connectTimeout = 10_000
+            connection.readTimeout = 15_000
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Cache-Control", "no-cache")
+            connection.setRequestProperty("User-Agent", "$appName-updater (Android)")
+            if (connection.responseCode == 404) return@withContext null
+            if (connection.responseCode != 200) throw httpError(connection, connection.responseCode)
+            val data = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+            val code = data.optLong("versionCode")
+            val apkUrl = data.optString("apkUrl")
+            val digest = data.optString("sha256").lowercase()
+            if (data.optString("channel") != channel || code <= 0L ||
+                !apkUrl.startsWith("https://") || !Regex("[a-f0-9]{64}").matches(digest)
+            ) throw IOException("Invalid $channel update manifest")
+            val notesJson = data.optJSONArray("notes")
+            Release(
+                tag = data.optString("tag").takeIf { it.isNotBlank() }
+                    ?: throw IOException("Invalid $channel update tag"),
+                versionName = data.optString("versionName"),
+                versionCode = code,
+                notes = notesJson?.let { array ->
+                    (0 until array.length()).map { array.optString(it) }.take(12)
+                } ?: emptyList(),
+                apkUrl = apkUrl,
+                apkName = data.optString("apkName"),
+                apkSize = data.optLong("apkSize"),
+                sha256 = digest,
+                pageUrl = data.optString("pageUrl").ifBlank {
+                    "https://github.com/N2K02/n2k02.github.io/releases"
+                },
+            )
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private suspend fun legacyLatestRelease(): Release? = withContext(Dispatchers.IO) {
         val c = URL("https://api.github.com/repos/$repo/releases/latest").openConnection() as HttpURLConnection
         try {
             c.connectTimeout = 10_000

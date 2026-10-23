@@ -8,6 +8,9 @@ on:
       - "app/build.gradle.kts"
       - "app/src/**"
       - ".github/workflows/build.yml"
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -23,6 +26,7 @@ env:
 
 jobs:
   build:
+    if: github.event_name != 'pull_request'
     name: Build and publish signed APK
     runs-on: ubuntu-latest
     steps:
@@ -144,3 +148,29 @@ jobs:
           body_path: release-notes.md
           files: ShizuCallRecorder-${{ steps.release.outputs.version }}.apk
           make_latest: true
+
+  experimental-pr:
+    name: Validate PR and upload debug APK
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Test and build experimental APK
+        env:
+          N2K02_PACKAGES_TOKEN: ${{ secrets.N2K02_PACKAGES_TOKEN }}
+          SKIP_SIGNING: 'true'
+        run: |
+          test -n "$N2K02_PACKAGES_TOKEN" || { echo "::error::N2K02_PACKAGES_TOKEN secret is missing"; exit 1; }
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug -PuseN2K02Libraries=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ShizuCallRecorder-PR-${{ github.event.pull_request.number }}-${{ github.sha }}
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

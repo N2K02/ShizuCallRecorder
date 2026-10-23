@@ -99,7 +99,7 @@ fun ShizuCallRecorderTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        shapes = ExpressiveShapes,
+        shapes = ExpressiveShapes.copy(extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)),
         content = content
     )
 }

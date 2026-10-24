@@ -16,6 +16,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.kitsumed.shizucallrecorder.integrations.scrcpy.ScrcpyConfig
 import dev.n2k02.updater.N2K02UpdateScreen
 
 /**

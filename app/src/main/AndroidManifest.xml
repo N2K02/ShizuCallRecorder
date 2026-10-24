@@ -129,11 +129,6 @@
             </intent-filter>
         </receiver>
 
-        <provider
-            android:name=".UpdateFileProvider"
-            android:authorities="${applicationId}.updates"
-            android:exported="false"
-            android:grantUriPermissions="true" />
 
         <provider
             android:name="rikka.shizuku.ShizukuProvider"

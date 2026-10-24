@@ -29,6 +29,7 @@ concurrency:
 
 env:
   APP: ShizuCallRecorder
+  N2K02_PACKAGES_TOKEN: ${{ secrets.N2K02_PACKAGES_TOKEN }}
 
 jobs:
   build:

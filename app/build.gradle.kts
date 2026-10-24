@@ -248,6 +248,9 @@ aboutLibraries {
 }
 
 dependencies {
+    implementation("dev.n2k02:theme:0.1.4")
+    implementation("dev.n2k02:updater:0.1.14")
+
     // AndroidX Core & Lifecycle
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.documentfile)

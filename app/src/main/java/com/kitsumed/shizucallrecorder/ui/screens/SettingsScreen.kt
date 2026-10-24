@@ -64,9 +64,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsumed.shizucallrecorder.R
 import com.kitsumed.shizucallrecorder.AppDetailsDialog
-import com.kitsumed.shizucallrecorder.AppUpdater
+import com.kitsumed.shizucallrecorder.LiveUpdater
 import com.kitsumed.shizucallrecorder.UpdateCard
-import com.kitsumed.shizucallrecorder.UpdatesScreen
+import dev.n2k02.updater.UpdateStatus
 import com.kitsumed.shizucallrecorder.ui.screens.RecordingsActivity
 import com.kitsumed.shizucallrecorder.data.AppPreferences
 import com.kitsumed.shizucallrecorder.integrations.scrcpy.ScrcpyAudioCodec
@@ -232,7 +232,7 @@ private fun SettingsMenu() {
     var menuOpen by remember { mutableStateOf(false) }
     var aboutOpen by remember { mutableStateOf(false) }
     var detailsOpen by remember { mutableStateOf(false) }
-    val state by AppUpdater.state.collectAsState()
+    val state by LiveUpdater.controller.status.collectAsState()
 
     Box {
         IconButton(onClick = { menuOpen = true }) {
@@ -245,12 +245,12 @@ private fun SettingsMenu() {
                         Text("Update")
                         Text(
                             when (val u = state) {
-                                is AppUpdater.State.Checking -> "Checking…"
-                                is AppUpdater.State.Available -> "Version ${u.release.versionName} available"
-                                is AppUpdater.State.Downloading -> "Downloading…"
-                                is AppUpdater.State.Ready, is AppUpdater.State.NeedsPermission -> "Ready to install"
-                                is AppUpdater.State.UpToDate -> "Up to date · v${AppUpdater.installedVersionName}"
-                                else -> "v${AppUpdater.installedVersionName} · check for updates"
+                                is UpdateStatus.Checking -> "Checking…"
+                                is UpdateStatus.Available -> "Version ${u.release.tag} available"
+                                is UpdateStatus.Downloading -> "Downloading…"
+                                is UpdateStatus.Ready, is UpdateStatus.NeedsInstallPermission -> "Ready to install"
+                                is UpdateStatus.Current -> "Up to date · v${LiveUpdater.installedVersionName}"
+                                else -> "v${LiveUpdater.installedVersionName} · check for updates"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -261,8 +261,8 @@ private fun SettingsMenu() {
                 onClick = {
                     menuOpen = false
                     // Other states already show their card with the right buttons.
-                    if (state is AppUpdater.State.Idle || state is AppUpdater.State.UpToDate || state is AppUpdater.State.Failed) {
-                        AppUpdater.check(manual = true)
+                    if (state is UpdateStatus.Idle || state is UpdateStatus.Current || state is UpdateStatus.Failed) {
+                        LiveUpdater.controller.check(manual = true)
                     }
                 },
             )

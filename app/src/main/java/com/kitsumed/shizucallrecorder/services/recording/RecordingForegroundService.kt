@@ -28,6 +28,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
@@ -37,6 +38,11 @@ import kotlin.coroutines.cancellation.CancellationException
  */
 class RecordingForegroundService : Service() {
     companion object {
+        /** Prevent the updater from opening Android's installer during an active recording. */
+        @Volatile
+        var activeForUpdate: Boolean = false
+            private set
+
         // -- Intent action for controlling and initializing the service lifecycle. --
 
         /** Intent action sent to this service to initialize the service and immediately start a new recording session. */
@@ -93,6 +99,11 @@ class RecordingForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        serviceScope.launch {
+            serviceState.collect { state ->
+                activeForUpdate = state.isStarting || state.isRecordingActive
+            }
+        }
         notificationHelper = RecordingNotificationHelper(this)
         notificationHelper.createNotificationChannels()
         overlayController = RecordingOverlayController(this)
@@ -244,6 +255,7 @@ class RecordingForegroundService : Service() {
         // Always clean up, even if the OS kills the service mid-recording.
         // This is the guaranteed last callback before the service process is cleaned up.
         AppLogger.v( "RecordingForegroundService is destroying... Ensuring cleanup...")
+        activeForUpdate = false
         serviceScope.cancel()
         overlayController.hideOverlay()
         stopRecordingSessionAndService()
